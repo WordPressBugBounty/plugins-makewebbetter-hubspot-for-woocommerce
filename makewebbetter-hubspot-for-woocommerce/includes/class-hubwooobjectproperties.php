@@ -309,6 +309,8 @@ class HubwooObjectProperties {
 					),
 				);
 
+				$filtergps = apply_filters( 'hubwoo_deal_search_filter', $filtergps, $order_id );
+
 				$response = HubWooConnectionMananager::get_instance()->search_object_record( 'deals', $filtergps );
 
 				if ( 200 == $response['status_code'] ) {
