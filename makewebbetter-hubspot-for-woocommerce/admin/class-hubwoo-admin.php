@@ -714,7 +714,7 @@ class Hubwoo_Admin {
 						<strong><?php echo esc_html__( "We noticed you're using WooCommerce HPOS. To ensure compatibility with the HubSpot WooCommerce plugin, please install the HPOS Addon.", 'makewebbetter-hubspot-for-woocommerce' ); ?></strong>
 					</p>
 					<div class="hubwoo-wrapper-notice">
-						<a target="_blank" href="https://makewebbetter.com/product/hubspot-woocommerce-hpos-compatibility/?utm_source=MWB-HubspotFree-backend&utm_medium=MWB-backend&utm_campaign=backend" class="hubwoo-btn--notific"><?php esc_html_e( 'Install Now', 'makewebbetter-hubspot-for-woocommerce' ); ?></a>
+						<a target="_blank" href="https://makewebbetter.com/product/hubspot-woocommerce-hpos-compatibility/?utm_source=MWB-HubspotFree-backend&utm_medium=MWB-backend&utm_campaign=backend" class="hubwoo-btn--notific"><?php esc_html_e( 'Buy Now', 'makewebbetter-hubspot-for-woocommerce' ); ?></a>
 						<a class="hubwoo-close-size hubwoo-hide-hpos-notice fa fa-times"></a>
 					</div>
 				</div>

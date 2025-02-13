@@ -2,7 +2,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: \n"
-"POT-Creation-Date: 2025-01-30 14:57+0530\n"
+"POT-Creation-Date: 2025-02-11 17:45+0530\n"
 "PO-Revision-Date: 2025-01-30 14:49+0530\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -176,7 +176,7 @@ msgid "We noticed you're using WooCommerce HPOS. To ensure compatibility with th
 msgstr ""
 
 #: admin/class-hubwoo-admin.php:717
-msgid "Install Now"
+msgid "Buy Now"
 msgstr ""
 
 #: admin/class-hubwoo-admin.php:796
@@ -447,54 +447,67 @@ msgid "$59 Buy Now"
 msgstr ""
 
 #: admin/templates/hubwoo-add-ons.php:77
-msgid "HubSpot Automated Coupons"
+msgid "HubSpot WooCommerce HPOS Compatibility"
 msgstr ""
 
 #: admin/templates/hubwoo-add-ons.php:81
+msgid "HubSpot WooCommerce HPOS add-on makes the HubSpot WooCommerce plugin compatible with the WooCommerce's High-Performance Order Storage (HPOS) functionality, enabling efficient data retrieval for frictionless syncing with HubSpot."
+msgstr ""
+
+#: admin/templates/hubwoo-add-ons.php:87
+msgid "$19 Buy Now"
+msgstr ""
+
+#: admin/templates/hubwoo-add-ons.php:96
+msgid "HubSpot Automated Coupons"
+msgstr ""
+
+#: admin/templates/hubwoo-add-ons.php:100
 msgid "Create and send discount coupon codes automatically to your customers using HubSpot. Also, monitor your coupon usage with automated coupons."
 msgstr ""
 
-#: admin/templates/hubwoo-add-ons.php:87 admin/templates/hubwoo-add-ons.php:107
+#: admin/templates/hubwoo-add-ons.php:106
 #: admin/templates/hubwoo-add-ons.php:126
 #: admin/templates/hubwoo-add-ons.php:145
-#: admin/templates/hubwoo-add-ons.php:164 admin/templates/hubwoo-support.php:80
+#: admin/templates/hubwoo-add-ons.php:164
+#: admin/templates/hubwoo-add-ons.php:183 admin/templates/hubwoo-support.php:80
 #: admin/templates/hubwoo-support.php:132
 msgid "Get Started"
 msgstr ""
 
-#: admin/templates/hubwoo-add-ons.php:92
+#: admin/templates/hubwoo-add-ons.php:111
 msgid "Additional Services"
 msgstr ""
 
-#: admin/templates/hubwoo-add-ons.php:97
+#: admin/templates/hubwoo-add-ons.php:116
 msgid "HubSpot Onboarding Services"
 msgstr ""
 
-#: admin/templates/hubwoo-add-ons.php:101
+#: admin/templates/hubwoo-add-ons.php:120
 msgid "Maximize your business’s potential with our HubSpot Onboarding Services. Our onboarding services include a personalized approach to streamline HubSpot implementation and training processes."
 msgstr ""
 
-#: admin/templates/hubwoo-add-ons.php:116
+#: admin/templates/hubwoo-add-ons.php:135
 msgid "Custom App/Integration Development Services"
 msgstr ""
 
-#: admin/templates/hubwoo-add-ons.php:120
+#: admin/templates/hubwoo-add-ons.php:139
 msgid "Scale your business to new heights with unique functionalities and features that your customers will love. Get our dedicated HubSpot custom app/integration services to fulfill your unique business needs."
 msgstr ""
 
-#: admin/templates/hubwoo-add-ons.php:135
+#: admin/templates/hubwoo-add-ons.php:154
 msgid "HubSpot Themes"
 msgstr ""
 
-#: admin/templates/hubwoo-add-ons.php:139
+#: admin/templates/hubwoo-add-ons.php:158
 msgid "Create aesthetic & responsive web pages with minimal efforts with HubSpot themes and offer a great experience on every device."
 msgstr ""
 
-#: admin/templates/hubwoo-add-ons.php:154
+#: admin/templates/hubwoo-add-ons.php:173
 msgid "HubSpot Migration Services"
 msgstr ""
 
-#: admin/templates/hubwoo-add-ons.php:158
+#: admin/templates/hubwoo-add-ons.php:177
 msgid "Our HubSpot Migration Services help you to migrate your website from any CMS to HubSpot along with the blogs, automations, leads, deals, SMSs, calls & emails, etc. with experienced Hubspot migration consultants."
 msgstr ""
 
