@@ -926,7 +926,7 @@ class Hubwoo_Public {
 					'return'              => 'ids',
 					'no_found_rows'       => true,
 					'ignore_sticky_posts' => true,
-					'customer'			  => $email,
+					'customer'			  => $fetched_email,
 				));
 
 				$customer_orders = $query->get_orders();

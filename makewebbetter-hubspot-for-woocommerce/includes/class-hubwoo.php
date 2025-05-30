@@ -71,7 +71,7 @@ if ( ! class_exists( 'Hubwoo' ) ) {
 				$this->version = HUBWOO_VERSION;
 			} else {
 
-				$this->version = '1.6.1';
+				$this->version = '1.6.2';
 			}
 
 			$this->plugin_name = 'makewebbetter-hubspot-for-woocommerce';
@@ -232,13 +232,14 @@ if ( ! class_exists( 'Hubwoo' ) ) {
 			$this->loader->add_action( 'admin_init', $plugin_admin, 'hubwoo_get_plugin_log' );
 			$this->loader->add_action( 'admin_init', $plugin_admin, 'hubwoo_check_property_value' );
 			$this->loader->add_action( 'admin_init', $plugin_admin, 'hubwoo_check_update_changes' );
-			$this->loader->add_action( 'admin_notices', $plugin_admin, 'hubwoo_cron_notification' );
+			$this->loader->add_action( 'admin_init', $plugin_admin, 'hubwoo_check_scheduler_status' );
+			// $this->loader->add_action( 'admin_notices', $plugin_admin, 'hubwoo_cron_notification' );
 			$this->loader->add_action( 'admin_notices', $plugin_admin, 'hubwoo_review_notice', 99 );
+			
 			//hpos changes
 			$this->loader->add_action( 'admin_notices', $plugin_admin, 'hubwoo_hpos_notice', 99 );
 			// hubspot deal hooks.
 			if ( 'yes' == get_option( 'hubwoo_ecomm_deal_enable', 'yes' ) ) {
-
 				$this->loader->add_filter( 'manage_edit-shop_order_columns', $plugin_admin, 'hubwoo_order_cols', 11 );
 				$this->loader->add_action( 'manage_shop_order_posts_custom_column', $plugin_admin, 'hubwoo_order_cols_value', 10, 2 );
 			}
@@ -254,14 +255,12 @@ if ( ! class_exists( 'Hubwoo' ) ) {
 			$this->loader->add_action( 'huwoo_abncart_clear_old_cart', $plugin_admin, 'huwoo_abncart_clear_old_cart' );
 
 			if ( get_option( 'hubwoo_checkout_form_created', 'no' ) == 'yes' ) {
-
 				$this->loader->add_action( 'woocommerce_checkout_process', $plugin_admin, 'hubwoo_submit_checkout_form' );
 			}
 
 			if ( $this->is_plugin_enable() == 'yes' ) {
 
 				if ( $this->is_setup_completed() ) {
-
 					$this->loader->add_action( 'hubwoo_cron_schedule', $plugin_admin, 'hubwoo_cron_schedule' );
 					$this->loader->add_filter( 'hubwoo_unset_workflow_properties', $plugin_admin, 'hubwoo_reset_workflow_properties' );
 					$this->loader->add_action( 'woocommerce_order_status_changed', $plugin_admin, 'hubwoo_update_order_changes' );
@@ -269,32 +268,27 @@ if ( ! class_exists( 'Hubwoo' ) ) {
 				}
 
 				if ( $this->hubwoo_subs_active() ) {
-
 					$this->loader->add_filter( 'hubwoo_contact_groups', $plugin_admin, 'hubwoo_subs_groups' );
 					$this->loader->add_filter( 'hubwoo_active_groups', $plugin_admin, 'hubwoo_active_subs_groups' );
 				}
 
-				// HubSpot Deals.
-				if ( false === wp_cache_get( 'hubwoo_product_update_lock' ) ) {
-					wp_cache_set( 'hubwoo_product_update_lock', true );
-					$this->loader->add_action( 'save_post', $plugin_admin, 'hubwoo_ecomm_update_product', 10, 2 );
-				}
-				if ( 'yes' == get_option( 'hubwoo_ecomm_deal_enable', 'yes' ) ) {
+				$this->loader->add_action( 'hubwoo_products_sync_check', $plugin_admin, 'hubwoo_products_sync_check' );
+				$this->loader->add_action( 'hubwoo_products_sync_background', $plugin_admin, 'hubwoo_products_sync_background' );
+				$this->loader->add_action( 'hubwoo_products_status_background', $plugin_admin, 'hubwoo_products_status_background' );
+				$this->loader->add_action( 'save_post', $plugin_admin, 'hubwoo_ecomm_update_product', 10, 2 );
 
-					$this->loader->add_action( 'hubwoo_ecomm_deal_upsert', $plugin_admin, 'hubwoo_ecomm_deal_upsert' );
+				// HubSpot Deals.
+				if ( 'yes' == get_option( 'hubwoo_ecomm_deal_enable', 'yes' ) ) {
 					$this->loader->add_action( 'hubwoo_ecomm_deal_update', $plugin_admin, 'hubwoo_ecomm_deal_update' );
 					$this->loader->add_action( 'hubwoo_deals_sync_check', $plugin_admin, 'hubwoo_deals_sync_check' );
-					$this->loader->add_action( 'hubwoo_products_sync_check', $plugin_admin, 'hubwoo_products_sync_check' );
-					$this->loader->add_action( 'hubwoo_deals_sync_background', $plugin_admin, 'hubwoo_deals_sync_background', 10, 2 );
-					$this->loader->add_action( 'hubwoo_products_sync_background', $plugin_admin, 'hubwoo_products_sync_background' );
-					$this->loader->add_action( 'hubwoo_products_status_background', $plugin_admin, 'hubwoo_products_status_background' );
 				}
+				$this->loader->add_action( 'hubwoo_deals_sync_background', $plugin_admin, 'hubwoo_deals_sync_background', 10, 2 );
 
 				$this->loader->add_action( 'hubwoo_check_logs', $plugin_admin, 'hubwoo_check_logs' );
+				$this->loader->add_action( 'hubwoo_check_scheduler_status', $plugin_admin, 'hubwoo_check_scheduler_status' );
 
 				// HubSpot deals hooks.
 				if ( 'yes' == get_option( 'hubwoo_ecomm_setup_completed', 'no' ) ) {
-
 					if( 'yes' != get_option('woocommerce_custom_orders_table_enabled', 'no') ) {
 						$this->loader->add_action( 'save_post_shop_order', $plugin_admin, 'hubwoo_ecomm_deal_update_order' );
 					}
@@ -551,7 +545,7 @@ if ( ! class_exists( 'Hubwoo' ) ) {
 
 			if ( self::is_setup_completed() ) {
 
-				return get_option( 'hubwoo_pro_version', '1.6.1' );
+				return get_option( 'hubwoo_pro_version', '1.6.2' );
 			} else {
 
 				return HUBWOO_VERSION;
@@ -800,16 +794,18 @@ if ( ! class_exists( 'Hubwoo' ) ) {
 				delete_metadata( 'user', 0, 'hubwoo_pro_user_data_change', '', true );
 				delete_metadata( 'user', 0, 'hubwoo_user_vid', '', true );
 				delete_metadata( 'post', 0, 'hubwoo_pro_user_data_change', '', true );
+				delete_metadata( 'post', 0, 'hubwoo_user_vid', '', true );
 				delete_metadata( 'post', 0, 'hubwoo_pro_guest_order', '', true );
 				delete_metadata( 'post', 0, 'hubwoo_ecomm_deal_id', '', true );
-				delete_metadata( 'post', 0, 'hubwoo_ecomm_pro_id', '', true );
 				delete_metadata( 'post', 0, 'hubwoo_ecomm_deal_created', '', true );
+				delete_metadata( 'post', 0, 'hubwoo_order_line_item_created', '', true );
+				delete_metadata( 'post', 0, 'hubwoo_ecomm_pro_id', '', true );
 				delete_metadata( 'post', 0, 'hubwoo_product_synced', '', true );
-				delete_metadata( 'post', 0, 'hubwoo_user_vid', '', true );
+				delete_metadata( 'post', 0, 'hubwoo_ecomm_invalid_pro', '', true );
 
 				//hpos changes
 				if( 'yes' == get_option('woocommerce_custom_orders_table_enabled', 'no') ) {
-					$wpdb->query( "DELETE FROM `{$wpdb->prefix}wc_orders_meta` WHERE `meta_key` IN ('hubwoo_pro_guest_order', 'hubwoo_ecomm_deal_id', 'hubwoo_ecomm_deal_created', 'hubwoo_user_vid', 'hubwoo_pro_user_data_change')" );
+					$wpdb->query( "DELETE FROM `{$wpdb->prefix}wc_orders_meta` WHERE `meta_key` IN ('hubwoo_pro_guest_order', 'hubwoo_ecomm_deal_id', 'hubwoo_ecomm_deal_created', 'hubwoo_user_vid', 'hubwoo_pro_user_data_change', 'hubwoo_order_line_item_created')" );
 				}
 			}
 

@@ -2,7 +2,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: \n"
-"POT-Creation-Date: 2025-02-11 17:45+0530\n"
+"POT-Creation-Date: 2025-05-29 12:50+0530\n"
 "PO-Revision-Date: 2025-01-30 14:49+0530\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -123,7 +123,7 @@ msgstr ""
 msgid "user-role"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:333 admin/class-hubwoo-admin.php:2522
+#: admin/class-hubwoo-admin.php:333 admin/class-hubwoo-admin.php:2547
 msgid "Select a time period"
 msgstr ""
 
@@ -147,7 +147,7 @@ msgstr ""
 msgid "Users registered upto date"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:358 admin/class-hubwoo-admin.php:2545
+#: admin/class-hubwoo-admin.php:358 admin/class-hubwoo-admin.php:2570
 msgid "dd-mm-yyyy"
 msgstr ""
 
@@ -163,253 +163,253 @@ msgstr ""
 msgid "View Document"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:629
+#: admin/class-hubwoo-admin.php:670
 msgid "The HubSpot for WooCommerce plugin isn’t connected right now. To start sync store data to HubSpot "
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:630
+#: admin/class-hubwoo-admin.php:671
 msgid "connect the plugin now."
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:714
+#: admin/class-hubwoo-admin.php:755
 msgid "We noticed you're using WooCommerce HPOS. To ensure compatibility with the HubSpot WooCommerce plugin, please install the HPOS Addon."
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:717
+#: admin/class-hubwoo-admin.php:758
 msgid "Buy Now"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:796
+#: admin/class-hubwoo-admin.php:836
 #: includes/class-hubwoocontactproperties.php:225
 msgid "Subscriptions Details"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1166
+#: admin/class-hubwoo-admin.php:1206
 msgid "HubSpot Actions"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1182 admin/templates/hubwoo-overview.php:121
+#: admin/class-hubwoo-admin.php:1222 admin/templates/hubwoo-overview.php:121
 msgid "Abandoned Cart Settings"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1188 admin/class-hubwoo-admin.php:2439
-#: admin/class-hubwoo-admin.php:2469
+#: admin/class-hubwoo-admin.php:1228 admin/class-hubwoo-admin.php:2464
+#: admin/class-hubwoo-admin.php:2494
 msgid "Enable/Disable"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1190
+#: admin/class-hubwoo-admin.php:1230
 msgid "Track Abandoned Carts"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1196
+#: admin/class-hubwoo-admin.php:1236
 msgid "Guest Users "
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1198
+#: admin/class-hubwoo-admin.php:1238
 msgid "Track Guest Abandoned Carts"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1204
+#: admin/class-hubwoo-admin.php:1244
 msgid "Delete Old Data "
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1206
+#: admin/class-hubwoo-admin.php:1246
 msgid "Delete Abandoned Carts Data"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1212
+#: admin/class-hubwoo-admin.php:1252
 msgid "Delete Data Timer( Days )"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1215
+#: admin/class-hubwoo-admin.php:1255
 msgid "Delete Abandoned cart data form woocommerce store."
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1222
+#: admin/class-hubwoo-admin.php:1262
 msgid "Cart Timer( Minutes )"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1225
+#: admin/class-hubwoo-admin.php:1265
 msgid "Set the timer for abandoned cart. Customers abandoned cart data will be updated over HubSpot after the specified timer. Minimum value is 5 minutes."
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1461
+#: admin/class-hubwoo-admin.php:1501
 #: includes/class-hubwoocontactproperties.php:3258
 msgid "Image"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1461
+#: admin/class-hubwoo-admin.php:1501
 #: includes/class-hubwoocontactproperties.php:3258
 msgid "Item"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1461
+#: admin/class-hubwoo-admin.php:1501
 #: includes/class-hubwoocontactproperties.php:3258
 msgid "Qty"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1461
+#: admin/class-hubwoo-admin.php:1501
 msgid "Cost"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1461
+#: admin/class-hubwoo-admin.php:1501
 #: includes/class-hubwoocontactproperties.php:3258
 msgid "Total"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1822
+#: admin/class-hubwoo-admin.php:1862
 #: includes/class-hubwoocontactproperties.php:2904
 #: includes/class-hubwoocontactproperties.php:3001
 #: includes/class-hubwoocontactproperties.php:3188
 msgid "Yes"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1826
+#: admin/class-hubwoo-admin.php:1866
 #: includes/class-hubwoocontactproperties.php:2908
 #: includes/class-hubwoocontactproperties.php:3005
 #: includes/class-hubwoocontactproperties.php:3192
 msgid "No"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1850
+#: admin/class-hubwoo-admin.php:1890
 #: admin/templates/hubwoo-general-settings.php:303
 msgid "Plugin Settings"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1856
+#: admin/class-hubwoo-admin.php:1896
 msgid "Sync with User Role"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1860
+#: admin/class-hubwoo-admin.php:1900
 msgid "The users with selected roles will be synced on HubSpot. Default will be all user roles."
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1868
+#: admin/class-hubwoo-admin.php:1908
 msgid "WooCommerce Subscription"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1871
+#: admin/class-hubwoo-admin.php:1911
 msgid "Enable subscriptions data sync"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1878
+#: admin/class-hubwoo-admin.php:1918
 msgid "Show Checkbox on Checkout Page"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1881
+#: admin/class-hubwoo-admin.php:1921
 msgid "Show Opt-In checkbox on Checkout Page"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1887
+#: admin/class-hubwoo-admin.php:1927
 msgid "Checkbox Label on Checkout Page"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1890 admin/class-hubwoo-admin.php:1908
+#: admin/class-hubwoo-admin.php:1930 admin/class-hubwoo-admin.php:1948
 msgid "Label to show for the checkbox"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1892 admin/class-hubwoo-admin.php:1910
+#: admin/class-hubwoo-admin.php:1932 admin/class-hubwoo-admin.php:1950
 #: public/class-hubwoo-public.php:198 public/class-hubwoo-public.php:219
 msgid "Subscribe"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1896
+#: admin/class-hubwoo-admin.php:1936
 msgid "Show Checkbox on My Account Page"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1899
+#: admin/class-hubwoo-admin.php:1939
 msgid "Show Opt-In checkbox on My Account Page (Registration form)"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1905
+#: admin/class-hubwoo-admin.php:1945
 msgid "Checkbox Label on My Account Page"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1914
+#: admin/class-hubwoo-admin.php:1954
 msgid "Calculate ROI for the Selected Status"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:1918
+#: admin/class-hubwoo-admin.php:1958
 msgid "Select an order status from the dropdown for which the new order property will be set/changed on each sync. Default Order Status is Completed"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2432
+#: admin/class-hubwoo-admin.php:2457
 msgid "Apply your settings for Deals and its stages"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2441
+#: admin/class-hubwoo-admin.php:2466
 msgid "Allow to sync new deals"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2448
+#: admin/class-hubwoo-admin.php:2473
 msgid "Days required to close a deal"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2451
+#: admin/class-hubwoo-admin.php:2476
 msgid "set the minimum number of days in which the pending/open deals can be closed/won"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2459
+#: admin/class-hubwoo-admin.php:2484
 msgid "Winning Deal Stages"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2463
+#: admin/class-hubwoo-admin.php:2488
 msgid "select the deal stages of ecommerce pipeline which are won according to your business needs. \"Processing\" and \"Completed\" are default winning stages for extension as well as HubSpot"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2471
+#: admin/class-hubwoo-admin.php:2496
 msgid "Allow to associate deal and company"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2478
+#: admin/class-hubwoo-admin.php:2503
 msgid "Enable Multi Currency\tSync"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2480
+#: admin/class-hubwoo-admin.php:2505
 msgid "Enable to sync currency if you are using multi currency on your site."
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2505
+#: admin/class-hubwoo-admin.php:2530
 msgid "Export your old orders as Deals on HubSpot"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2512
+#: admin/class-hubwoo-admin.php:2537
 msgid "Select order status"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2515
+#: admin/class-hubwoo-admin.php:2540
 msgid "Select a order status from the dropdown and all orders for the selected status will be synced as deals"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2524
+#: admin/class-hubwoo-admin.php:2549
 msgid " Date range for orders"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2530
+#: admin/class-hubwoo-admin.php:2555
 msgid "Orders from date"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2535
+#: admin/class-hubwoo-admin.php:2560
 msgid "From which date you want to sync the orders, select that date"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2541
+#: admin/class-hubwoo-admin.php:2566
 msgid "Orders up to date"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2546
+#: admin/class-hubwoo-admin.php:2571
 msgid "Up to which date you want to sync the orders, select that date"
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2623
+#: admin/class-hubwoo-admin.php:2648
 msgid "Log file could not be read."
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:2641
+#: admin/class-hubwoo-admin.php:2666
 msgid "Log file not found or inaccessible."
 msgstr ""
 
-#: admin/class-hubwoo-admin.php:3232
+#: admin/class-hubwoo-admin.php:3257
 #: includes/class-hubwoocontactproperties.php:409
 msgid "Customer Source Store"
 msgstr ""
@@ -1320,160 +1320,160 @@ msgstr ""
 msgid "To"
 msgstr ""
 
-#: includes/class-hubwoo.php:440
+#: includes/class-hubwoo.php:434
 msgid "Dashboard"
 msgstr ""
 
-#: includes/class-hubwoo.php:442
+#: includes/class-hubwoo.php:436
 msgid "Integrate your WooCommerce store with HubSpot"
 msgstr ""
 
-#: includes/class-hubwoo.php:446
+#: includes/class-hubwoo.php:440
 msgid "Contacts"
 msgstr ""
 
-#: includes/class-hubwoo.php:448
+#: includes/class-hubwoo.php:442
 msgid "Sync all your woocommerce data to HubSpot"
 msgstr ""
 
-#: includes/class-hubwoo.php:452
+#: includes/class-hubwoo.php:446
 msgid "Deals"
 msgstr ""
 
-#: includes/class-hubwoo.php:454
+#: includes/class-hubwoo.php:448
 msgid "Sync All of your woocommerce orders as HubSpot Deals"
 msgstr ""
 
-#: includes/class-hubwoo.php:458
+#: includes/class-hubwoo.php:452
 msgid "Abandoned Carts"
 msgstr ""
 
-#: includes/class-hubwoo.php:460
+#: includes/class-hubwoo.php:454
 msgid "Sync all of the cart abandoners on your website"
 msgstr ""
 
-#: includes/class-hubwoo.php:464
+#: includes/class-hubwoo.php:458
 msgid "Automation"
 msgstr ""
 
-#: includes/class-hubwoo.php:466
+#: includes/class-hubwoo.php:460
 msgid "Create Workflows to Track ROI and Retrieve Abandoned Carts"
 msgstr ""
 
-#: includes/class-hubwoo.php:470
+#: includes/class-hubwoo.php:464
 msgid "Add Ons"
 msgstr ""
 
-#: includes/class-hubwoo.php:472
+#: includes/class-hubwoo.php:466
 msgid "Add-ons for the HubSpot Integrations"
 msgstr ""
 
-#: includes/class-hubwoo.php:475 makewebbetter-hubspot-for-woocommerce.php:165
+#: includes/class-hubwoo.php:469 makewebbetter-hubspot-for-woocommerce.php:165
 msgid "Settings"
 msgstr ""
 
-#: includes/class-hubwoo.php:477
+#: includes/class-hubwoo.php:471
 msgid "General And Advanced Settings"
 msgstr ""
 
-#: includes/class-hubwoo.php:480
+#: includes/class-hubwoo.php:474
 msgid "Logs"
 msgstr ""
 
-#: includes/class-hubwoo.php:482
+#: includes/class-hubwoo.php:476
 msgid "HubSpot Logs"
 msgstr ""
 
-#: includes/class-hubwoo.php:488 includes/class-hubwoo.php:490
+#: includes/class-hubwoo.php:482 includes/class-hubwoo.php:484
 msgid "Support"
 msgstr ""
 
-#: includes/class-hubwoo.php:655
+#: includes/class-hubwoo.php:649
 #, php-format
 msgid "Unable to locate file path at location %s some features may not work properly in HubSpot Integration, please contact us!"
 msgstr ""
 
-#: includes/class-hubwoo.php:1432
+#: includes/class-hubwoo.php:1428
 msgid "New User Registration"
 msgstr ""
 
-#: includes/class-hubwoo.php:1446
+#: includes/class-hubwoo.php:1442
 msgid "When order status changes to Completed"
 msgstr ""
 
-#: includes/class-hubwoo.php:1447
+#: includes/class-hubwoo.php:1443
 msgid "When order status changes to Processing"
 msgstr ""
 
-#: includes/class-hubwoo.php:1448
+#: includes/class-hubwoo.php:1444
 msgid "When order status changes to Failed"
 msgstr ""
 
-#: includes/class-hubwoo.php:1449
+#: includes/class-hubwoo.php:1445
 msgid "When order status changes to On-hold"
 msgstr ""
 
-#: includes/class-hubwoo.php:1450
+#: includes/class-hubwoo.php:1446
 msgid "When order status changes to Refunded"
 msgstr ""
 
-#: includes/class-hubwoo.php:1451
+#: includes/class-hubwoo.php:1447
 msgid "When order status changes to Cancelled"
 msgstr ""
 
-#: includes/class-hubwoo.php:2214
+#: includes/class-hubwoo.php:2210
 msgid "Checkout Abandoned"
 msgstr ""
 
-#: includes/class-hubwoo.php:2221
+#: includes/class-hubwoo.php:2217
 msgid "Payment Pending/Failed"
 msgstr ""
 
-#: includes/class-hubwoo.php:2228
+#: includes/class-hubwoo.php:2224
 msgid "On hold"
 msgstr ""
 
-#: includes/class-hubwoo.php:2235
+#: includes/class-hubwoo.php:2231
 msgid "Processing"
 msgstr ""
 
-#: includes/class-hubwoo.php:2242
+#: includes/class-hubwoo.php:2238
 msgid "Completed"
 msgstr ""
 
-#: includes/class-hubwoo.php:2249
+#: includes/class-hubwoo.php:2245
 msgid "Refunded/Cancelled"
 msgstr ""
 
-#: includes/class-hubwoo.php:2380
+#: includes/class-hubwoo.php:2376
 msgid "HubSpot All-In-One Marketing - Forms, Popups, Live Chat"
 msgstr ""
 
-#: includes/class-hubwoo.php:2706
+#: includes/class-hubwoo.php:2702
 msgid "You are having issues with your MWB HubSpot for WooCommerce sync. Please read this doc on how to fix your integration."
 msgstr ""
 
-#: includes/class-hubwoo.php:2956
+#: includes/class-hubwoo.php:2952
 msgid "Discount savings"
 msgstr ""
 
-#: includes/class-hubwoo.php:2964
+#: includes/class-hubwoo.php:2960
 msgid "Order number"
 msgstr ""
 
-#: includes/class-hubwoo.php:2972
+#: includes/class-hubwoo.php:2968
 msgid "Shipment IDs"
 msgstr ""
 
-#: includes/class-hubwoo.php:2980
+#: includes/class-hubwoo.php:2976
 msgid "Tax amount"
 msgstr ""
 
-#: includes/class-hubwoo.php:3000
+#: includes/class-hubwoo.php:2996
 msgid "Store Product Id"
 msgstr ""
 
-#: includes/class-hubwoo.php:3008
+#: includes/class-hubwoo.php:3004
 msgid "Product Source Store"
 msgstr ""
 
@@ -1527,205 +1527,205 @@ msgstr ""
 msgid "Updating or Creating users data"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:779
+#: includes/class-hubwooconnectionmananager.php:780
 msgid "Updating or Creating single users data"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:823
+#: includes/class-hubwooconnectionmananager.php:824
 msgid "Creating Lists"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:853
+#: includes/class-hubwooconnectionmananager.php:854
 msgid "--Please Select a Static List--"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:871
+#: includes/class-hubwooconnectionmananager.php:872
 msgid "Get Static Lists"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:922
+#: includes/class-hubwooconnectionmananager.php:923
 msgid "Get Dynamic Lists"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:972
+#: includes/class-hubwooconnectionmananager.php:973
 msgid "Enrolling in Static List"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1013
+#: includes/class-hubwooconnectionmananager.php:1014
 msgid "Creating Workflows"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1041
-#: includes/class-hubwooconnectionmananager.php:1102
+#: includes/class-hubwooconnectionmananager.php:1042
+#: includes/class-hubwooconnectionmananager.php:1103
 msgid "--Please Select a Workflow--"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1064
+#: includes/class-hubwooconnectionmananager.php:1065
 msgid "Getting all Workflows"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1125
+#: includes/class-hubwooconnectionmananager.php:1126
 msgid "Get single Workflows"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1167
+#: includes/class-hubwooconnectionmananager.php:1168
 msgid "Enrolling in Workflow"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1268
+#: includes/class-hubwooconnectionmananager.php:1269
 #, php-format
 msgid "Fetching all %s Properties"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1306
+#: includes/class-hubwooconnectionmananager.php:1307
 msgid "Fetching Contact Lists"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1343
+#: includes/class-hubwooconnectionmananager.php:1344
 msgid "Fetching Contacts from List"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1389
+#: includes/class-hubwooconnectionmananager.php:1390
 #, php-format
 msgid "Fetching %s object"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1422
+#: includes/class-hubwooconnectionmananager.php:1423
 #, php-format
 msgid "Creating single %s data"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1472
+#: includes/class-hubwooconnectionmananager.php:1473
 #, php-format
 msgid "Updated single %s data"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1519
+#: includes/class-hubwooconnectionmananager.php:1520
 #, php-format
 msgid "Search single %s data"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1579
+#: includes/class-hubwooconnectionmananager.php:1580
 #, php-format
 msgid "Fetching Batch %s"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1613
+#: includes/class-hubwooconnectionmananager.php:1614
 #, php-format
 msgid "Creating bulk %s data"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1662
+#: includes/class-hubwooconnectionmananager.php:1663
 #, php-format
 msgid "Updated bulk %s data"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1720
+#: includes/class-hubwooconnectionmananager.php:1721
 #, php-format
 msgid "Associate %1$s to %2$s"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1770
+#: includes/class-hubwooconnectionmananager.php:1771
 #, php-format
 msgid "Delete association %1$s to %2$s"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1820
+#: includes/class-hubwooconnectionmananager.php:1821
 #, php-format
 msgid "Associate batch %1$s to %2$s"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1869
+#: includes/class-hubwooconnectionmananager.php:1870
 #, php-format
 msgid "Delete batch association %1$s to %2$s"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1923
+#: includes/class-hubwooconnectionmananager.php:1924
 msgid "Fetching marketing emails"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:1951
+#: includes/class-hubwooconnectionmananager.php:1952
 msgid "Creating marketing email."
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2012
+#: includes/class-hubwooconnectionmananager.php:2013
 msgid "Removing Deal Association With Contact"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2057
+#: includes/class-hubwooconnectionmananager.php:2058
 msgid "Creating Deal Association With Contact"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2102
+#: includes/class-hubwooconnectionmananager.php:2103
 msgid "Creating Deal Association With Company"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2142
+#: includes/class-hubwooconnectionmananager.php:2143
 msgid "Updating HubSpot Deals"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2171
+#: includes/class-hubwooconnectionmananager.php:2172
 msgid "Creating deal custom groups"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2214
+#: includes/class-hubwooconnectionmananager.php:2215
 msgid "Creating deal custom properties"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2267
+#: includes/class-hubwooconnectionmananager.php:2268
 msgid "Updating HubSpot Deal Properties"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2303
-#: includes/class-hubwooconnectionmananager.php:2340
+#: includes/class-hubwooconnectionmananager.php:2304
+#: includes/class-hubwooconnectionmananager.php:2341
 msgid "Fetching Contact VID by email"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2378
+#: includes/class-hubwooconnectionmananager.php:2379
 msgid "Creating New deal"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2421
+#: includes/class-hubwooconnectionmananager.php:2422
 msgid "Fetch all pipeline"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2468
+#: includes/class-hubwooconnectionmananager.php:2469
 msgid "Get deal pipeline info"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2495
+#: includes/class-hubwooconnectionmananager.php:2496
 msgid "Creating deal pipeline"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2550
+#: includes/class-hubwooconnectionmananager.php:2551
 msgid "Updating the ecommerce pipeline deal stages"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2612
+#: includes/class-hubwooconnectionmananager.php:2613
 msgid "Creating or Updating Store"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2737
+#: includes/class-hubwooconnectionmananager.php:2738
 msgid "Creating a form data"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2779
+#: includes/class-hubwooconnectionmananager.php:2780
 msgid "Submitting Form data"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2819
+#: includes/class-hubwooconnectionmananager.php:2820
 msgid "Fetching Batch Vids"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2857
+#: includes/class-hubwooconnectionmananager.php:2858
 msgid "Fetching All Forms"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2899
+#: includes/class-hubwooconnectionmananager.php:2900
 msgid "Fetching Contact by email"
 msgstr ""
 
-#: includes/class-hubwooconnectionmananager.php:2938
+#: includes/class-hubwooconnectionmananager.php:2939
 msgid "Updating HubSpot Products"
 msgstr ""
 

@@ -1744,7 +1744,6 @@ if ( ! class_exists( 'HubWooAjaxHandler' ) ) {
 										$order->save();
 									} else if ( 400 == $response['status_code'] ) {
 										$order->update_meta_data('hubwoo_invalid_contact', 'yes');
-										$order->update_meta_data('hubwoo_pro_user_data_change', 'synced');
 										$order->update_meta_data('hubwoo_pro_guest_order', 'synced');
 										$order->save();
 									}

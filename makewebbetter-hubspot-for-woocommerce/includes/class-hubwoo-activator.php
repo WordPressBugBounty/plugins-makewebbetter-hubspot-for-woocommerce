@@ -81,6 +81,11 @@ if ( ! class_exists( 'Hubwoo_Activator' ) ) {
 				as_schedule_recurring_action( time(), 86400, 'huwoo_abncart_clear_old_cart' );
 			}
 
+			if ( ! as_next_scheduled_action( 'hubwoo_check_scheduler_status' ) ) {
+
+				as_schedule_recurring_action( time(), 10800, 'hubwoo_check_scheduler_status' );
+			}
+
 			// Create log table in database.
 			Hubwoo::hubwoo_create_log_table( Hubwoo::get_current_crm_name( 'slug' ) );
 		}

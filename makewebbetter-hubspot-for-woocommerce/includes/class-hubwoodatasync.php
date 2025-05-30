@@ -28,81 +28,128 @@ class HubwooDataSync {
 	 * @param string $response_type sync type.
 	 * @param int    $limit offset for users.
 	 */
-	public function hubwoo_get_all_unique_user( $count = false, $response_type = 'customer', $limit = 20 ) {
+	public function hubwoo_get_all_unique_user($count = false, $response_type = 'customer', $limit = 20)
+	{
 
 		$limit        = $count ? -1 : $limit;
 		$unique_users = 0;
 		$args         = array();
 		$date_range   = false;
-		if ( 'yes' == get_option( 'hubwoo_customers_manual_sync', 'no' ) ) {
+		if ('yes' == get_option('hubwoo_customers_manual_sync', 'no')) {
 			$date_range = true;
-			$from_date  = get_option( 'hubwoo_users_from_date', gmdate( 'd-m-Y' ) );
-			$upto_date  = get_option( 'hubwoo_users_upto_date', gmdate( 'd-m-Y' ) );
+			$from_date  = get_option('hubwoo_users_from_date', gmdate('d-m-Y'));
+			$upto_date  = get_option('hubwoo_users_upto_date', gmdate('d-m-Y'));
 		}
 
 		// checking for guest users in the array.
-		$roles = get_option( 'hubwoo_customers_role_settings', array() );
+		$roles = get_option('hubwoo_customers_role_settings', array());
 
-		if ( empty( $roles ) ) {
+		if (empty($roles)) {
 			global $hubwoo;
-			$roles = array_keys( $hubwoo->hubwoo_get_user_roles() );
-			$key   = array_search( 'guest_user', $roles );
-			if ( false !== $key ) {
-				unset( $roles[ $key ] );
+			$roles = array_keys($hubwoo->hubwoo_get_user_roles());
+			$key   = array_search('guest_user', $roles);
+			if (false !== $key) {
+				unset($roles[$key]);
 			}
 		}
 
-		if ( in_array( 'guest_user', $roles ) ) {
+		if (in_array('guest_user', $roles)) {
 
-			$key = array_search( 'guest_user', $roles );
+			$key = array_search('guest_user', $roles);
 
-			$order_statuses = get_option( 'hubwoo-selected-order-status', array() );
+			$order_statuses = get_option('hubwoo-selected-order-status', array());
 
-			if ( empty( $order_statuses ) || ( ! is_array( $order_statuses ) && count( $order_statuses ) < 1 ) ) {
-				$order_statuses = array_keys( wc_get_order_statuses() );
+			if (empty($order_statuses) || (! is_array($order_statuses) && count($order_statuses) < 1)) {
+				$order_statuses = array_keys(wc_get_order_statuses());
 			}
 
-			if ( false !== $key ) {
-				unset( $roles[ $key ] );
+			if (false !== $key) {
+				unset($roles[$key]);
 			}
 
-			$order_args = array(
-				'return'                 => 'ids',
-				'limit'                  => $limit,
-				'type'                   => wc_get_order_types(),
-				'status'                 => $order_statuses,
-				'customer'               => 0,
-				'hubwoo_pro_guest_order' => 'synced',
-			);
-
-			if ( $date_range ) {
-				$order_args['date_modified'] = gmdate( 'Y-m-d', strtotime( $from_date ) ) . '...' . gmdate( 'Y-m-d', strtotime( $upto_date . ' +1 day' ) );
+			//hpos changes
+			if (Hubwoo::hubwoo_check_hpos_active()) {
+				// HPOS is enabled.
+				$args = array(
+					'limit'        => -1, // Query all orders
+					'post_status'  => $order_statuses,
+					'return'       => 'ids',
+					'post_parent'  => 0,
+					'customer_id'  => 0,
+					'meta_query'   => array(
+						'relation' => 'AND',
+						array(
+							'key'     => 'hubwoo_pro_guest_order',
+							'compare' => '==',
+							'value'   => 'yes',
+						),
+						array(
+							'key'     => 'hubwoo_invalid_contact',
+							'compare' => 'NOT EXISTS',
+						),
+					)
+				);
+			} else {
+				// CPT-based orders are in use.
+				$args = array(
+					'numberposts' => -1,
+					'post_type'   => 'shop_order',
+					'fields'      => 'ids',
+					'post_status' => $order_statuses,
+					'meta_query'  => array(
+						'relation' => 'AND',
+						array(
+							'key'     => 'hubwoo_pro_guest_order',
+							'compare' => '==',
+							'value'   => 'yes',
+						),
+						array(
+							'key'     => 'hubwoo_invalid_contact',
+							'compare' => 'NOT EXISTS',
+						),
+					),
+				);
 			}
 
-			$guest_orders = wc_get_orders( $order_args );
+			if ($date_range) {
+				$args['date_query'] = array(
+					array(
+						'after'     => gmdate('d-m-Y', strtotime($from_date)),
+						'before'    => gmdate('d-m-Y', strtotime($upto_date . ' +1 day')),
+						'inclusive' => true,
+					),
+				);
+			}
 
-			$guest_emails = array_unique( self::get_guest_sync_data( $guest_orders, true ) );
+			//hpos changes
+			if (Hubwoo::hubwoo_check_hpos_active()) {
+				$guest_orders = wc_get_orders($args);
+			} else {
+				$guest_orders = get_posts($args);
+			}
 
-			if ( 'guestOrder' == $response_type ) {
+			$guest_emails = array_unique(self::get_guest_sync_data($guest_orders, true));
+
+			if ('guestOrder' == $response_type) {
 				return $guest_orders;
 			}
 
-			if ( is_array( $guest_orders ) ) {
-				$unique_users += count( $guest_emails );
+			if (is_array($guest_orders)) {
+				$unique_users += count($guest_emails);
 			}
 		} else {
 
-			if ( 'guestOrder' == $response_type ) {
+			if ('guestOrder' == $response_type) {
 				return false;
 			}
 		}
 
-		if ( $date_range ) {
+		if ($date_range) {
 
 			$args['date_query'] = array(
 				array(
-					'after'     => gmdate( 'd-m-Y', strtotime( $from_date ) ),
-					'before'    => gmdate( 'd-m-Y', strtotime( $upto_date . ' +1 day' ) ),
+					'after'     => gmdate('d-m-Y', strtotime($from_date)),
+					'before'    => gmdate('d-m-Y', strtotime($upto_date . ' +1 day')),
 					'inclusive' => true,
 				),
 			);
@@ -129,10 +176,10 @@ class HubwooDataSync {
 
 		$args['fields'] = 'ID';
 
-		$registered_users = get_users( $args );
+		$registered_users = get_users($args);
 
-		if ( $count ) {
-			$unique_users += count( $registered_users );
+		if ($count) {
+			$unique_users += count($registered_users);
 			return $unique_users;
 		}
 

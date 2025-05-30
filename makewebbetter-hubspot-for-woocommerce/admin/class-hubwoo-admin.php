@@ -547,6 +547,47 @@ class Hubwoo_Admin {
 	}
 
 	/**
+	 * Check status of schedulers and rerun them too.
+	 *
+	 * @since 1.6.2
+	 */
+	public function hubwoo_check_scheduler_status() {
+		$current_time = time();
+		
+		if($current_time - get_option("hubwoo_last_time_scheduler_check",time()) > 900){
+			if ( ! as_next_scheduled_action( 'hubwoo_cron_schedule' ) ) {
+				as_schedule_recurring_action( time(), 300, 'hubwoo_cron_schedule' );
+			}
+	
+			if ( ! as_next_scheduled_action( 'hubwoo_deals_sync_check' ) ) {
+				as_schedule_recurring_action( time(), 300, 'hubwoo_deals_sync_check' );
+			}
+	
+			if ( ! as_next_scheduled_action( 'hubwoo_ecomm_deal_update' ) ) {
+				as_schedule_recurring_action( time(), 180, 'hubwoo_ecomm_deal_update' );
+			}
+	
+			if ( ! as_next_scheduled_action( 'hubwoo_products_sync_check' ) ) {
+				as_schedule_recurring_action( time(), 300, 'hubwoo_products_sync_check' );
+			}
+	
+			if ( ! as_next_scheduled_action( 'hubwoo_check_logs' ) ) {
+				as_schedule_recurring_action( time(), 86400, 'hubwoo_check_logs' );
+			}
+	
+			if ( ! as_next_scheduled_action( 'huwoo_abncart_clear_old_cart' ) ) {
+				as_schedule_recurring_action( time(), 86400, 'huwoo_abncart_clear_old_cart' );
+			}
+	
+			if ( ! as_next_scheduled_action( 'hubwoo_check_scheduler_status' ) ) {
+				as_schedule_recurring_action( time(), 10800, 'hubwoo_check_scheduler_status' );
+			}
+
+			update_option( 'hubwoo_last_time_scheduler_check', $current_time );
+		}
+	}
+
+	/**
 	 * Getting next execution for realtime cron, priorities task for old users.
 	 *
 	 * @since 1.2.9
@@ -732,7 +773,6 @@ class Hubwoo_Admin {
 	public function hubwoo_update_order_changes( $order_id ) {
 
 		if ( ! empty( $order_id ) ) {
-
 			$order = wc_get_order($order_id);
 
 			$user_id = (int) $order->get_customer_id();
@@ -1793,7 +1833,7 @@ class Hubwoo_Admin {
 				),
 			),
 		);
-		$args['number']              = 25;
+		$args['number']              = 10;
 		$args['fields']              = 'ID';
 		$hubwoo_abandoned_cart_users = get_users( $args );
 		$hubwoo_new_users            = array();
@@ -1993,21 +2033,6 @@ class Hubwoo_Admin {
 		$args['fields'] = 'ids';
 
 		return count( get_users( $args ) );
-	}
-	
-	/**
-	 * Background sync for Deals.
-	 *
-	 * @since 1.0.0
-	 * @param int $order_id order id.
-	 */
-	public function hubwoo_ecomm_deal_upsert( $order_id ) {
-
-		if ( empty( $order_id ) ) {
-			return;
-		}
-
-		HubwooObjectProperties::get_instance()->hubwoo_ecomm_deals_sync( $order_id );
 	}
 
 	/**
@@ -3258,7 +3283,6 @@ class Hubwoo_Admin {
 	public function hubwoo_ecomm_deal_update_order( $order_id ) {
 	
 		if ( ! empty( $order_id ) ) {
-
 			$order = wc_get_order( $order_id );
 
 			$upsert_meta = $order->get_meta('hubwoo_ecomm_deal_upsert', 'no');

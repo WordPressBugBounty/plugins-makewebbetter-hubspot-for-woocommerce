@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Abandoned Cart settings template.
  *
@@ -16,12 +17,12 @@
 			<div class="hubwoo-settings-container">
 				<div class="hubwoo-general-settings">
 					<div class="hubwoo-group-wrap__abandon_cart_setup">
-						<form action="" method="post" class="hubwoo-abncart-setup-form hubwoo-abncart-setup-form--d" >
-							<?php woocommerce_admin_fields( Hubwoo_Admin::hubwoo_abncart_general_settings() ); ?>									
+						<form action="" method="post" class="hubwoo-abncart-setup-form hubwoo-abncart-setup-form--d">
+							<?php woocommerce_admin_fields(Hubwoo_Admin::hubwoo_abncart_general_settings()); ?>
 						</form>
 					</div>
 				</div>
-			</div>		
+			</div>
 		</div>
 	</div>
 </div>

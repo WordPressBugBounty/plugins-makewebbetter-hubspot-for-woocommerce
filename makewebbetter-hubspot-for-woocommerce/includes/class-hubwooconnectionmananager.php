@@ -533,7 +533,7 @@ class HubWooConnectionMananager {
 				$response     = wp_remote_request(
 					$this->base_url . $url,
 					array(
-						'method'  => 'PUT',
+						'method'  => 'PATCH',
 						'headers' => $headers,
 						'body'    => $prop_details,
 					)
@@ -696,6 +696,7 @@ class HubWooConnectionMananager {
 				}
 				if ( isset( $args['ids'] ) && isset( $args['type'] ) ) {
 					Hubwoo::hubwoo_marked_sync( $args['ids'], $args['type'] );
+					do_action( 'hubwoo_ecomm_after_contacts_synced', $args['ids'], $args['type'] );
 				}
 			} elseif ( 400 === $status_code ) {
 
