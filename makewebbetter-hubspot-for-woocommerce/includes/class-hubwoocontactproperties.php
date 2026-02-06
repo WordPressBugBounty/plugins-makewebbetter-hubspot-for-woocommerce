@@ -1369,451 +1369,754 @@ class HubWooContactProperties {
 		}
 
 		if ( ! empty( $abandoned_property_updated ) && 'yes' == $abandoned_property_updated ) {
-
 			$abandoned_status = true;
 		}
 
 		$lists[] = array(
-
-			'name'    => __( 'Customers', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
+			'name' => 'Customers',
+			'objectTypeId' => '0-1', 
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
 					array(
-						'operator' => 'EQ',
-						'value'    => 'customer',
-						'property' => 'lifecyclestage',
-						'type'     => 'enumeration',
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'lifecyclestage',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('customer')
+								)
+							)
+						)
+					)
+				)
+			),
+		);
+
+		$lists[] = array(
+			'name' => 'Leads',
+			'objectTypeId' => '0-1',      
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
+					array(
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'lifecyclestage',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('lead')
+								)
+							)
+						)
+					)
+				)
+			),
+		);
+
+		$lists[] = array(
+			'name' => 'Abandoned Cart',
+			'objectTypeId' => '0-1',
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
+					array(
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'current_abandoned_cart',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('yes')
+								)
+							)
+						)
+					)
+				)
+			),
+		);
+
+		$lists[] = array(
+			'name' => 'Best Customers',
+			'objectTypeId' => '0-1',
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
+					array(
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'monetary_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('5')
+								)
+							),
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'order_frequency_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('5')
+								)
+							),
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'order_recency_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('5')
+								)
+							)
+						)
+					)
+				)
+			),
+		);
+
+		$lists[] = array(
+			'name' => 'Big Spenders',
+			'objectTypeId' => '0-1',      
+			'processingType' => 'DYNAMIC', 
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
+					array(
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'monetary_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('5')
+								)
+							)
+						)
+					)
+				)
+			),
+		);
+
+		$lists[] = array(
+			'name' => 'Loyal Customers',
+			'objectTypeId' => '0-1',       
+			'processingType' => 'DYNAMIC', 
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
+					array(
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'order_frequency_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('5')
+								)
+							),
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'order_recency_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('5')
+								)
+							)
+						)
+					)
+				)
+			),
+		);
+
+		$lists[] = array(
+			'name' => 'Churning Customers',
+			'objectTypeId' => '0-1',      
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
+					array(
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'monetary_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('5')
+								)
+							),
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'order_frequency_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('5')
+								)
+							),
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'order_recency_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('1')
+								)
+							)
+						)
+					)
+				)
+			),
+		);
+
+		$lists[] = array(
+			'name' => 'Low Value Lost Customers',
+			'objectTypeId' => '0-1',   
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
+					array(
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'monetary_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('1')
+								)
+							),
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'order_frequency_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('1')
+								)
+							),
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'order_recency_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('1')
+								)
+							)
+						)
+					)
+				)
+			),
+		);
+
+		$lists[] = array(
+			'name' => 'New Customers',
+			'objectTypeId' => '0-1',   
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
+					array(
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'order_frequency_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('1')
+								)
+							),
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'order_recency_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('1')
+								)
+							)
+						)
+					)
+				)
+			),
+		);
+
+		$lists[] = array(
+			'name' => 'Customers needing attention',
+			'objectTypeId' => '0-1', 
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
+					array(
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'monetary_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('3')
+								)
+							),
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'order_frequency_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('3')
+								)
+							),
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'order_recency_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_ANY_OF',
+									'values' => array('1','2')
+								)
+							)
+						)
+					)
+				)
+			),
+		);
+
+		$lists[] = array(
+			'name' => 'About to Sleep',
+			'objectTypeId' => '0-1',       
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
+					array(
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'monetary_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_ANY_OF',
+									'values' => array('1','2')
+								)
+							),
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'order_frequency_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_ANY_OF',
+									'values' => array('1','2')
+								)
+							),
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'order_recency_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_ANY_OF',
+									'values' => array('1','2')
+								)
+							)
+						)
+					)
+				)
+			),
+		);
+
+		$lists[] = array(
+			'name' => 'Mid Spenders',
+			'objectTypeId' => '0-1',       
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
+					array(
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'monetary_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('3')
+								)
+							)
+						)
+					)
+				)
+			),
+		);
+
+		$lists[] = array(
+			'name' => 'Low Spenders',
+			'objectTypeId' => '0-1',       
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
+					array(
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'monetary_rating',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('1')
+								)
+							)
+						)
+					)
+				)
+			),
+		);
+
+		$lists[] = array(
+			'name' => 'Newsletter Subscriber',
+			'objectTypeId' => '0-1',      
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
+					array(
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'newsletter_subscription',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('yes')
+								)
+							)
+						)
+					)
+				)
+			),
+		);
+
+		$lists[] = array(
+			'name' => 'One time purchase customers',
+			'objectTypeId' => '0-1',       
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
+					array(
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'total_number_of_orders',
+								'operation' => array(
+									'operationType' => 'NUMBER',
+									'operator' => 'IS_EQUAL_TO',
+									'value' => 1
+								)
+							)
+						)
+					)
+				)
+			),
+		);
+
+		$lists[] = array(
+			'name' => 'Two time purchase customers',
+			'objectTypeId' => '0-1',      
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
+					array(
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'total_number_of_orders',
+								'operation' => array(
+									'operationType' => 'NUMBER',
+									'operator' => 'IS_EQUAL_TO',
+									'value' => 2
+								)
+							)
+						)
+					)
+				)
+			),
+		);
+
+		$lists[] = array(
+			'name' => 'Three time purchase customers',
+			'objectTypeId' => '0-1',      
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
+					array(
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'total_number_of_orders',
+								'operation' => array(
+									'operationType' => 'NUMBER',
+									'operator' => 'IS_EQUAL_TO',
+									'value' => 3
+								)
+							)
+						)
+					)
+				)
+			),
+		);
+
+		$lists[] = array(
+			'name' => 'Bought four or more times',
+			'objectTypeId' => '0-1',      
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
+					array(
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'total_number_of_orders',
+								'operation' => array(
+									'operationType' => 'NUMBER',
+									'operator' => 'IS_GREATER_THAN_OR_EQUAL_TO',
+									'value' => 4
+								)
+							)
+						)
+					)
+				)
+			),
+		);
+
+		$lists[] = array(
+			'name' => 'Marketing Qualified Leads',
+			'objectTypeId' => '0-1',
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranches' => array(
+					array(
+						'filterBranchType' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'lifecyclestage',
+								'operation' => array(
+									'operationType' => 'ENUMERATION',
+									'operator' => 'IS_EXACTLY',
+									'values' => array('marketingqualifiedlead')
+								),
+							),
+						),
 					),
 				),
 			),
 		);
 
 		$lists[] = array(
-
-			'name'    => __( 'Leads', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
+			'name' => 'Engaged Customers',
+			'objectTypeId' => '0-1',
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranchOperator' => 'OR',
+				'filterBranches' => array(
 					array(
-						'operator' => 'EQ',
-						'value'    => 'lead',
-						'property' => 'lifecyclestage',
-						'type'     => 'enumeration',
+						'filterBranchType' => 'AND',
+						'filterBranchOperator' => 'AND',
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'last_order_date',
+								'operation' => array(
+									'operationType' => 'TIME_RANGED',
+									'type' => 'TIME_RANGED',
+									'operator' => 'IS_BETWEEN',
+									'includeObjectsWithNoValueSet' => false,
+									'lowerBoundEndpointBehavior' => 'INCLUSIVE',
+									'upperBoundEndpointBehavior' => 'INCLUSIVE',
+									'propertyParser' => 'VALUE',
+									'lowerBoundTimePoint' => array(
+										'timeType' => 'INDEXED',
+										'timezoneSource' => 'CUSTOM',
+										'zoneId' => 'US/Eastern',
+										'indexReference' => array(
+											'referenceType' => 'TODAY'
+										),
+										'offset' => array(
+											'days' => -60
+										)
+									),
+									'upperBoundTimePoint' => array(
+										'timeType' => 'INDEXED',
+										'timezoneSource' => 'CUSTOM',
+										'zoneId' => 'US/Eastern',
+										'indexReference' => array(
+											'referenceType' => 'NOW'
+										)
+									),
+								),
+							),
+						),
+						'filterBranches' => array(),
 					),
 				),
+				'filters' => array(),
 			),
 		);
 
-		$lists[] = array(
 
-			'name'    => __( 'Abandoned Cart', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'operator' => 'EQ',
-						'value'    => $abandoned_status,
-						'property' => 'current_abandoned_cart',
-						'type'     => 'enumeration',
-					),
-				),
-			),
-		);
-
-		$lists[] = array(
-
-			'name'    => __( 'Best Customers', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'operator' => 'EQ',
-						'value'    => 5,
-						'property' => 'monetary_rating',
-						'type'     => 'enumeration',
-					),
-					array(
-						'operator' => 'EQ',
-						'value'    => 5,
-						'property' => 'order_frequency_rating',
-						'type'     => 'enumeration',
-					),
-					array(
-						'operator' => 'EQ',
-						'value'    => 5,
-						'property' => 'order_recency_rating',
-						'type'     => 'enumeration',
-					),
-				),
-			),
-		);
-
-		$lists[] = array(
-
-			'name'    => __( 'Big Spenders', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'operator' => 'EQ',
-						'value'    => 5,
-						'property' => 'monetary_rating',
-						'type'     => 'enumeration',
-					),
-				),
-			),
-		);
-
-		$lists[] = array(
-
-			'name'    => __( 'Loyal Customers', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'operator' => 'EQ',
-						'value'    => 5,
-						'property' => 'order_frequency_rating',
-						'type'     => 'enumeration',
-					),
-					array(
-						'operator' => 'EQ',
-						'value'    => 5,
-						'property' => 'order_recency_rating',
-						'type'     => 'enumeration',
-					),
-				),
-			),
-		);
+		$lists[] = [
+			"name" => "DisEngaged Customers",
+			"objectTypeId" => "0-1",
+			"processingType" => "DYNAMIC",
+			"filterBranch" => [
+				"filterBranchType" => "OR",
+				"filterBranches" => [
+					[
+						"filterBranchType" => "AND",
+						"filters" => [
+							[
+								"filterType" => "PROPERTY",
+								"property" => "last_order_date",
+								"operation" => [
+									"operator" => "IS_BETWEEN",
+									"includeObjectsWithNoValueSet" => false,
+									"lowerBoundEndpointBehavior" => "INCLUSIVE",
+									"upperBoundEndpointBehavior" => "INCLUSIVE",
+									"propertyParser" => "VALUE",
+									"lowerBoundTimePoint" => [
+										"timeType" => "INDEXED",
+										"timezoneSource" => "PORTAL",
+										"zoneId" => "US/Eastern",
+										"indexReference" => [
+											"referenceType" => "TODAY"
+										],
+										"offset" => [
+											"days" => -180
+										]
+									],
+									"upperBoundTimePoint" => [
+										"timeType" => "INDEXED",
+										"timezoneSource" => "PORTAL",
+										"zoneId" => "US/Eastern",
+										"indexReference" => [
+											"referenceType" => "NOW"
+										]
+									],
+									"type" => "TIME_RANGED",
+									"operationType" => "TIME_RANGED"
+								]
+							],
+							[
+								"filterType" => "PROPERTY",
+								"property" => "last_order_date",
+								"operation" => [
+									"operator" => "IS_BEFORE",
+									"includeObjectsWithNoValueSet" => false,
+									"endpointBehavior" => "EXCLUSIVE",
+									"timePoint" => [
+										"timeType" => "INDEXED",
+										"timezoneSource" => "PORTAL",
+										"zoneId" => "US/Eastern",
+										"indexReference" => [
+											"referenceType" => "TODAY"
+										],
+										"offset" => [
+											"days" => -60
+										]
+									],
+									"type" => "TIME_POINT",
+									"operationType" => "TIME_POINT"
+								]
+							]
+						]
+					]
+				]
+			],
+		];
 
 		$lists[] = array(
-
-			'name'    => __( 'Churning Customers', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
+			'name' => 'Repeat Buyers',
+			'objectTypeId' => '0-1',
+			'processingType' => 'DYNAMIC',
+			'filterBranch' => array(
+				'filterBranchType' => 'OR',
+				'filterBranchOperator' => 'OR',
+				'filterBranches' => array(
 					array(
-						'operator' => 'EQ',
-						'value'    => 5,
-						'property' => 'monetary_rating',
-						'type'     => 'enumeration',
-					),
-					array(
-						'operator' => 'EQ',
-						'value'    => 5,
-						'property' => 'order_frequency_rating',
-						'type'     => 'enumeration',
-					),
-					array(
-						'operator' => 'EQ',
-						'value'    => 1,
-						'property' => 'order_recency_rating',
-						'type'     => 'enumeration',
-					),
-				),
-			),
-		);
-
-		$lists[] = array(
-
-			'name'    => __( 'Low Value Lost Customers', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'operator' => 'EQ',
-						'value'    => 1,
-						'property' => 'monetary_rating',
-						'type'     => 'enumeration',
-					),
-					array(
-						'operator' => 'EQ',
-						'value'    => 1,
-						'property' => 'order_frequency_rating',
-						'type'     => 'enumeration',
-					),
-					array(
-						'operator' => 'EQ',
-						'value'    => 1,
-						'property' => 'order_recency_rating',
-						'type'     => 'enumeration',
+						'filterBranchType' => 'AND',
+						'filterBranchOperator' => 'AND',
+						'filterBranches' => array(),
+						'filters' => array(
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'total_number_of_orders',
+								'operation' => array(
+									'operationType' => 'NUMBER',
+									'type' => 'NUMBER',
+									'operator' => 'IS_GREATER_THAN_OR_EQUAL_TO',
+									'value' => 5,
+									'propertyParser' => 'VALUE'
+								),
+							),
+							array(
+								'filterType' => 'PROPERTY',
+								'property' => 'average_days_between_orders',
+								'operation' => array(
+									'operationType' => 'NUMBER',
+									'type' => 'NUMBER',
+									'operator' => 'IS_LESS_THAN_OR_EQUAL_TO',
+									'value' => 30,
+									'propertyParser' => 'VALUE'
+								),
+							),
+						),
 					),
 				),
-			),
-		);
-
-		$lists[] = array(
-
-			'name'    => __( 'New Customers', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'operator' => 'EQ',
-						'value'    => 1,
-						'property' => 'order_frequency_rating',
-						'type'     => 'enumeration',
-					),
-					array(
-						'operator' => 'EQ',
-						'value'    => 1,
-						'property' => 'order_recency_rating',
-						'type'     => 'enumeration',
-					),
-				),
-			),
-		);
-
-		$lists[] = array(
-
-			'name'    => __( 'Customers needing attention', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'operator' => 'EQ',
-						'value'    => 3,
-						'property' => 'monetary_rating',
-						'type'     => 'enumeration',
-					),
-					array(
-						'operator' => 'EQ',
-						'value'    => 3,
-						'property' => 'order_frequency_rating',
-						'type'     => 'enumeration',
-					),
-					array(
-						'operator' => 'SET_ANY',
-						'value'    => implode( ';', array( 1, 2 ) ),
-						'property' => 'order_recency_rating',
-						'type'     => 'enumeration',
-					),
-				),
-			),
-		);
-
-		$lists[] = array(
-
-			'name'    => __( 'About to Sleep', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'operator' => 'SET_ANY',
-						'value'    => implode( ';', array( 1, 2 ) ),
-						'property' => 'monetary_rating',
-						'type'     => 'enumeration',
-					),
-					array(
-						'operator' => 'SET_ANY',
-						'value'    => implode( ';', array( 1, 2 ) ),
-						'property' => 'order_frequency_rating',
-						'type'     => 'enumeration',
-					),
-					array(
-						'operator' => 'SET_ANY',
-						'value'    => implode( ';', array( 1, 2 ) ),
-						'property' => 'order_recency_rating',
-						'type'     => 'enumeration',
-					),
-				),
-			),
-		);
-
-		$lists[] = array(
-
-			'name'    => __( 'Mid Spenders', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'operator' => 'EQ',
-						'value'    => 3,
-						'property' => 'monetary_rating',
-						'type'     => 'enumeration',
-					),
-				),
-			),
-		);
-
-		$lists[] = array(
-
-			'name'    => __( 'Low Spenders', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'operator' => 'EQ',
-						'value'    => 1,
-						'property' => 'monetary_rating',
-						'type'     => 'enumeration',
-					),
-				),
-			),
-		);
-
-		$lists[] = array(
-
-			'name'    => __( 'Newsletter Subscriber', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'operator' => 'EQ',
-						'value'    => $optin,
-						'property' => 'newsletter_subscription',
-						'type'     => 'enumeration',
-					),
-				),
-			),
-		);
-
-		$lists[] = array(
-
-			'name'    => __( 'One time purchase customers', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'operator' => 'EQ',
-						'value'    => 1,
-						'property' => 'total_number_of_orders',
-						'type'     => 'number',
-					),
-				),
-			),
-		);
-
-		$lists[] = array(
-
-			'name'    => __( 'Two time purchase customers', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'operator' => 'EQ',
-						'value'    => 2,
-						'property' => 'total_number_of_orders',
-						'type'     => 'number',
-					),
-				),
-			),
-		);
-
-		$lists[] = array(
-
-			'name'    => __( 'Three time purchase customers', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'operator' => 'EQ',
-						'value'    => 3,
-						'property' => 'total_number_of_orders',
-						'type'     => 'number',
-					),
-				),
-			),
-		);
-
-		$lists[] = array(
-
-			'name'    => __( 'Bought four or more times', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'operator' => 'EQ',
-						'value'    => 4,
-						'property' => 'total_number_of_orders',
-						'type'     => 'number',
-					),
-				),
-			),
-		);
-
-		$lists[] = array(
-
-			'name'    => __( 'Marketing Qualified Leads', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'operator' => 'EQ',
-						'value'    => 'marketingqualifiedlead',
-						'property' => 'lifecyclestage',
-						'type'     => 'enumeration',
-					),
-				),
-			),
-		);
-		$lists[] = array(
-
-			'name'    => __( 'Engaged Customers', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'operator'           => 'WITHIN_TIME',
-						'withinLastTime'     => 60,
-						'withinLastTimeUnit' => 'DAYS',
-						'withinLastDays'     => 60,
-						'withinTimeMode'     => 'PAST',
-						'property'           => 'last_order_date',
-						'type'               => 'date',
-					),
-				),
-			),
-		);
-
-		$lists[] = array(
-
-			'name'    => __( 'DisEngaged Customers', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'withinLastTime'          => 60,
-						'withinLastTimeUnit'      => 'DAYS',
-						'reverseWithinTimeWindow' => true,
-						'withinLastDays'          => 60,
-						'withinTimeMode'          => 'PAST',
-						'type'                    => 'date',
-						'operator'                => 'WITHIN_TIME',
-						'property'                => 'last_order_date',
-					),
-					array(
-						'withinLastTime'     => 180,
-						'withinLastTimeUnit' => 'DAYS',
-						'withinLastDays'     => 180,
-						'withinTimeMode'     => 'PAST',
-						'type'               => 'date',
-						'operator'           => 'WITHIN_TIME',
-						'property'           => 'last_order_date',
-					),
-				),
-			),
-		);
-
-		$lists[] = array(
-			'name'    => __( 'Repeat Buyers', 'makewebbetter-hubspot-for-woocommerce' ),
-			'dynamic' => true,
-			'filters' => array(
-				array(
-					array(
-						'type'     => 'number',
-						'operator' => 'GTE',
-						'property' => 'total_number_of_orders',
-						'value'    => 5,
-					),
-					array(
-						'type'     => 'number',
-						'operator' => 'LTE',
-						'property' => 'average_days_between_orders',
-						'value'    => 30,
-					),
-				),
+				'filters' => array(),
 			),
 		);
 

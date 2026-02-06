@@ -362,7 +362,7 @@ class HubWooPropertyCallbacks {
 		$last_order_for_html       = 0;
 		$last_order_id             = 0;
 
-		$order_tracking_number = get_post_meta( $last_order, '_wc_shipment_tracking_items', true );
+		$order_tracking_number = Hubwoo::hubwoo_hpos_get_meta_data( $last_order, '_wc_shipment_tracking_items', true );
 		if ( ! empty( $order_tracking_number ) ) {
 
 			$shipment_data = $order_tracking_number[0];

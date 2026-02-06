@@ -89,9 +89,8 @@ class Hubwoo_Public {
 			$customer_id = $order->get_customer_id();
 
 			if ( empty( $customer_id ) || 0 == $customer_id ) {
-				if ('yes' != $order->get_meta('hubwoo_pro_guest_order', true)) {
-					$order->update_meta_data('hubwoo_pro_guest_order', 'yes');
-					$order->save();
+				if ('yes' != Hubwoo::hubwoo_hpos_get_meta_data($order, 'hubwoo_pro_guest_order', true)) {
+					Hubwoo::hubwoo_hpos_update_meta_data($order,'hubwoo_pro_guest_order','yes');
 				}
 			} else {
 				update_user_meta( $customer_id, 'hubwoo_pro_user_data_change', 'yes' );
@@ -256,8 +255,7 @@ class Hubwoo_Public {
 						} else {
 
 							$order = wc_get_order($order_id);
-							$order->update_meta_data( 'hubwoo_checkout_marketing_optin', 'yes' );
-							$order->save();
+							Hubwoo::hubwoo_hpos_update_meta_data($order,'hubwoo_checkout_marketing_optin','yes');
 						}
 					}
 				}
@@ -991,8 +989,7 @@ class Hubwoo_Public {
 			update_user_meta( $customer_id, 'hubwoo_preferred_language', $current_lang );
 
 		} else {
-			$order->update_meta_data('hubwoo_preferred_language', $current_lang);
-			$order->save();
+			Hubwoo::hubwoo_hpos_update_meta_data($order,'hubwoo_preferred_language',$current_lang);
 		}
 	}
 

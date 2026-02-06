@@ -1001,7 +1001,7 @@
 				},
 			);
 
-			jQuery( '.hubwoo-onquest' ).select2(
+			jQuery( '.hubwoo-onquest' ).selectWoo(
 				{
 					placeholder: "Select from the options",
 					ajax: {
@@ -1036,7 +1036,7 @@
 				},
 			);
 
-			jQuery( '#hubwoo_ecomm_order_ocs_status' ).select2(
+			jQuery( '#hubwoo_ecomm_order_ocs_status' ).selectWoo(
 				{
 					placeholder: 'Processing, Completed etc.',
 					ajax: {
@@ -1068,7 +1068,7 @@
 				},
 			);
 
-			jQuery( '#hubwoo-selected-user-roles, #hubwoo_customers_role_settings' ).select2(
+			jQuery( '#hubwoo-selected-user-roles, #hubwoo_customers_role_settings' ).selectWoo(
 				{
 					placeholder: 'All Users Roles are Selected except Guest.',
 					ajax: {
@@ -1290,7 +1290,7 @@
 				),
 			);
 
-			jQuery( '#hubwoo_ecomm_won_stages' ).select2(
+			jQuery( '#hubwoo_ecomm_won_stages' ).selectWoo(
 				{
 					placeholder: 'Select Winning Deal Stages.',
 					ajax: {
@@ -1767,7 +1767,7 @@
 						const deal_property = await jQuery.ajax({ type : 'POST', url  : ajaxUrl, data : { action : 'hubwoo_deals_create_property', hubwooSecurity, }, dataType : 'json', });
 						
 					allCreatedProperties = allCreatedProperties.map((prop) => { return prop.replace(/["']/g, "").trim()})
-					await saveUpdates( { 'hubwoo-groups-created': allCreatedGroups, 'hubwoo-properties-created': allCreatedProperties, 'hubwoo_fields_setup_completed': 1, 'hubwoo_pro_setup_completed': 1, 'hubwoo_plugin_version': '1.6.2' } );
+					await saveUpdates( { 'hubwoo-groups-created': allCreatedGroups, 'hubwoo-properties-created': allCreatedProperties, 'hubwoo_fields_setup_completed': 1, 'hubwoo_pro_setup_completed': 1, 'hubwoo_plugin_version': '1.6.5' } );
 					await runEcommSetup();
 					updateProgressBar( 100 );
 					transferScreen( 'move-to-list' );

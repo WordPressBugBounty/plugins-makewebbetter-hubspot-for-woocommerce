@@ -605,45 +605,30 @@ class HubWooConnectionMananager {
 	}
 
 	/**
-	 * Create a single contact on HS.
+	 * Create a single contact / Use_V1_compatibility_since_1.6.5
 	 *
 	 * @since 1.0.0
 	 * @param array $contact formatted data to create single contact on hubspot.
 	 * @return array $parsed_response formatted array with status/message.
 	 */
 	public function create_single_contact( $contact ) {
+		$parsed_response = array(
+			'status_code' => 400,
+			'response'    => 'V1 older API not running',
+			'body'        => [],
+		);
 
-		if ( is_array( $contact ) ) {
-
-			$url      = '/contacts/v1/contact';
-			$headers  = $this->get_token_headers();
-			$contact  = wp_json_encode( $contact );
-			$res_body = '';
-			$response = wp_remote_post(
-				$this->base_url . $url,
-				array(
-					'headers' => $headers,
-					'body'    => $contact,
-				)
-			);
-			$message  = __( 'Creating Single Contact', 'makewebbetter-hubspot-for-woocommerce' );
-			if ( is_wp_error( $response ) ) {
-				$status_code = $response->get_error_code();
-				$res_message = $response->get_error_message();
-			} else {
-				$status_code = wp_remote_retrieve_response_code( $response );
-				$res_message = wp_remote_retrieve_response_message( $response );
-				$res_body    = wp_remote_retrieve_body( $response );
+		if ( is_array($contact) && count( $contact ) ) {
+			$contact_properties = $contact['properties'];
+			$modified_contact_properties = array();
+			foreach ($contact_properties as $property) {
+				$modified_contact_properties[$property['property']] = $property['value'];
 			}
-
-			$parsed_response = array(
-				'status_code' => $status_code,
-				'response'    => $res_message,
-				'body'        => $res_body,
-			);
-			$this->create_log( $message, $url, $parsed_response, 'contacts' );
-			return $parsed_response;
+			$modified_contact_properties = array('properties' => $modified_contact_properties);
+			$parsed_response = self::create_object_record('contact', $modified_contact_properties);
 		}
+
+		return $parsed_response;
 	}
 
 	/**
@@ -730,10 +715,9 @@ class HubWooConnectionMananager {
 								$customer_orders = $query->get_orders();
 
 								if ( count( $customer_orders ) ) {
-									foreach ( $customer_orders as $key => $value ) {
+									foreach ( $customer_orders as $order_id ) {
 										$order = wc_get_order($order_id);
-										$order->update_meta_data('hubwoo_invalid_contact', 'yes');
-										$order->save();
+										Hubwoo::hubwoo_hpos_update_meta_data($order,'hubwoo_invalid_contact','yes');
 									}
 								}
 							}
@@ -748,6 +732,52 @@ class HubWooConnectionMananager {
 			if ( ! empty( $savedinvalidemails ) ) {
 				update_option( 'hubwoo_pro_invalid_emails', $savedinvalidemails );
 			}
+			$this->create_log( $message, $url, $parsed_response, 'contacts' );
+			return $parsed_response;
+		}
+	}
+
+	/**
+	 * Create or update contacts v3.
+	 *
+	 * @param  array $contacts hubspot acceptable contacts array.
+	 * @param  array $args ids of contacts or orders.
+	 * @since 1.0.0
+	 * @return array $parsed_response formatted array with status/message
+	 */
+	public function create_or_update_contacts_v3( $contacts ) {
+
+		if ( is_array( $contacts ) ) {
+
+			$url      = '/crm/v3/objects/contacts/batch/upsert';
+			$headers  = $this->get_token_headers();
+			$res_body = '';
+
+			$contacts = wp_json_encode( $contacts );
+			$response = wp_remote_post(
+				$this->base_url . $url,
+				array(
+					'body'    => $contacts,
+					'headers' => $headers,
+				)
+			);
+			$message  = esc_html__( 'Updating or Creating users data', 'makewebbetter-hubspot-for-woocommerce' );
+
+			if ( is_wp_error( $response ) ) {
+				$status_code = $response->get_error_code();
+				$res_message = $response->get_error_message();
+			} else {
+				$status_code = wp_remote_retrieve_response_code( $response );
+				$res_message = wp_remote_retrieve_response_message( $response );
+				$res_body    = wp_remote_retrieve_body( $response );
+			}
+
+			$parsed_response = array(
+				'status_code' => $status_code,
+				'response'    => $res_message,
+				'body'        => $res_body,
+			);
+
 			$this->create_log( $message, $url, $parsed_response, 'contacts' );
 			return $parsed_response;
 		}
@@ -807,10 +837,9 @@ class HubWooConnectionMananager {
 	 * @return array $parsed_response formatted array with status/message.
 	 */
 	public function create_list( $list_details ) {
-
-		if ( is_array( $list_details ) ) {
+		if ( is_array( $list_details ) && count( $list_details ) ) {
 			if ( isset( $list_details['name'] ) ) {
-				$url          = '/contacts/v1/lists';
+				$url          = '/crm/v3/lists';
 				$headers      = $this->get_token_headers();
 				$res_body     = '';
 				$list_details = wp_json_encode( $list_details );
@@ -1359,7 +1388,7 @@ class HubWooConnectionMananager {
 	 * Getting single object record.
 	 *
 	 * @since 1.4.0
-	 * @param array $object_type HubSpot Object type.
+	 * @param string $object_type HubSpot Object type.
 	 * @param int   $object_id id of the object.
 	 * @return array $parsed_response formatted array with status/response.
 	 */
@@ -1702,10 +1731,17 @@ class HubWooConnectionMananager {
 			$headers  = $this->get_token_headers();
 			$res_body = '';
 
-			$associate_body[] = array(
-				'associationCategory' => 'HUBSPOT_DEFINED',
-				'associationTypeId' => $association_id,
-			);
+			if(is_string($association_id)){
+				$associate_body[] = array(
+					'associationCategory' => 'USER_DEFINED',
+					'associationTypeId' => apply_filters("hubwoo_custom_defined_association", $association_id),
+				);
+			}else{
+				$associate_body[] = array(
+					'associationCategory' => 'HUBSPOT_DEFINED',
+					'associationTypeId' => $association_id,
+				);
+			}
 			$associate_body = wp_json_encode( $associate_body );
 
 			$response = wp_remote_request(
@@ -1972,96 +2008,51 @@ class HubWooConnectionMananager {
 	}
 
 	/**
-	 * Remove deal associations on email change.
+	 * Remove association from deal to contact / Use_V1_compatibility_since_1.6.5
 	 *
 	 * @since 1.0.0
 	 * @param string $deal_id id of the deal.
-	 * @param string $vid id of the contact.
+	 * @param string $contact_id id of the contact.
 	 * @return array $response formatted aray for response.
 	 */
-	public function remove_deal_associations( $deal_id, $vid ) {
-
-		$url      = '/crm-associations/v1/associations/delete';
-		$headers  = $this->get_token_headers();
-		$request  = array(
-			'fromObjectId' => $vid,
-			'toObjectId'   => $deal_id,
-			'category'     => 'HUBSPOT_DEFINED',
-			'definitionId' => '4',
-		);
-		$request  = json_encode( $request );
-		$response = wp_remote_request(
-			$this->base_url . $url,
-			array(
-				'body'    => $request,
-				'headers' => $headers,
-				'method'  => 'PUT',
-			)
-		);
-
-		if ( is_wp_error( $response ) ) {
-			$status_code = $response->get_error_code();
-			$res_message = $response->get_error_message();
-		} else {
-			$status_code = wp_remote_retrieve_response_code( $response );
-			$res_message = wp_remote_retrieve_response_message( $response );
-		}
+	public function remove_deal_associations( $deal_id, $contact_id ) {
 		$parsed_response = array(
-			'status_code' => $status_code,
-			'response'    => $res_message,
+			'status_code' => 400,
+			'response'    => 'V1 older API not running',
+			'body'        => [],
 		);
-		$message         = __( 'Removing Deal Association With Contact', 'makewebbetter-hubspot-for-woocommerce' );
-		$this->create_log( $message, $url, $parsed_response, 'association' );
-		return $response;
-	}
-
-	/**
-	 * Create deal associations.
-	 *
-	 * @since 1.0.0
-	 * @param string $deal_id id of the deal.
-	 * @param string $vid id of the contact.
-	 * @return array $response formatted aray for response.
-	 */
-	public function create_deal_associations( $deal_id, $vid ) {
-
-		$url     = '/crm-associations/v1/associations';
-		$headers = $this->get_token_headers();
-		$request = array(
-			'fromObjectId' => $vid,
-			'toObjectId'   => $deal_id,
-			'category'     => 'HUBSPOT_DEFINED',
-			'definitionId' => '4',
-		);
-		$request = json_encode( $request );
-
-		$response = wp_remote_request(
-			$this->base_url . $url,
-			array(
-				'body'    => $request,
-				'headers' => $headers,
-				'method'  => 'PUT',
-			)
-		);
-
-		if ( is_wp_error( $response ) ) {
-			$status_code = $response->get_error_code();
-			$res_message = $response->get_error_message();
-		} else {
-			$status_code = wp_remote_retrieve_response_code( $response );
-			$res_message = wp_remote_retrieve_response_message( $response );
+		
+		if ( !empty( $contact_id ) && !empty( $deal_id ) ) {
+			$parsed_response = self::remove_associated_object( 'contact', $contact_id, 'deal', $deal_id, 4 );
 		}
-		$parsed_response = array(
-			'status_code' => $status_code,
-			'response'    => $res_message,
-		);
-		$message         = __( 'Creating Deal Association With Contact', 'makewebbetter-hubspot-for-woocommerce' );
-		$this->create_log( $message, $url, $parsed_response, 'association' );
+
 		return $parsed_response;
 	}
 
 	/**
-	 * Create deal and company associations.
+	 * Create contact to deal association / Use_V1_compatibility_since_1.6.5
+	 *
+	 * @since 1.0.0
+	 * @param string $deal_id id of the deal.
+	 * @param string $contact_id id of the contact.
+	 * @return array $response formatted aray for response.
+	 */
+	public function create_deal_associations( $deal_id, $contact_id ) {
+		$parsed_response = array(
+			'status_code' => 400,
+			'response'    => 'V1 older API not running',
+			'body'        => [],
+		);
+		
+		if ( !empty( $contact_id ) && !empty( $deal_id ) ) {
+			$parsed_response = self::associate_object( 'contact', $contact_id, 'deal', $deal_id, 4 );
+		}
+
+		return $parsed_response;
+	}
+
+	/**
+	 * Create company to deal association / Use_V1_compatibility_since_1.6.5
 	 *
 	 * @since 1.2.7
 	 * @param string $deal_id id of the deal.
@@ -2069,207 +2060,115 @@ class HubWooConnectionMananager {
 	 * @return array $response formatted aray for response.
 	 */
 	public function create_deal_company_associations( $deal_id, $company_id ) {
-
-		$url     = '/crm-associations/v1/associations';
-		$headers = $this->get_token_headers();
-		$request = array(
-			'fromObjectId' => $company_id,
-			'toObjectId'   => $deal_id,
-			'category'     => 'HUBSPOT_DEFINED',
-			'definitionId' => '6',
-		);
-		$request = json_encode( $request );
-
-		$response = wp_remote_request(
-			$this->base_url . $url,
-			array(
-				'body'    => $request,
-				'headers' => $headers,
-				'method'  => 'PUT',
-			)
-		);
-
-		if ( is_wp_error( $response ) ) {
-			$status_code = $response->get_error_code();
-			$res_message = $response->get_error_message();
-		} else {
-			$status_code = wp_remote_retrieve_response_code( $response );
-			$res_message = wp_remote_retrieve_response_message( $response );
-		}
 		$parsed_response = array(
-			'status_code' => $status_code,
-			'response'    => $res_message,
+			'status_code' => 400,
+			'response'    => 'V1 older API not running',
+			'body'        => [],
 		);
-		$message         = __( 'Creating Deal Association With Company', 'makewebbetter-hubspot-for-woocommerce' );
-		$this->create_log( $message, $url, $parsed_response, 'association' );
+		
+		if ( !empty( $company_id ) && !empty( $deal_id ) ) {
+			$parsed_response = self::associate_object( 'company', $company_id, 'deal', $deal_id, 6 );
+		}
+
 		return $parsed_response;
 	}
 
 	/**
-	 * Updating deals.
+	 * Update deal record / Use_V1_compatibility_since_1.6.5
 	 *
 	 * @since    1.0.0
 	 * @param string $deal_id id of the deal.
 	 * @param array  $deal_details details of the deal.
 	 */
 	public function update_existing_deal( $deal_id, $deal_details ) {
-
-		$url          = '/deals/v1/deal/' . $deal_id;
-		$headers      = $this->get_token_headers();
-		$res_body     = '';
-		$deal_details = json_encode( $deal_details );
-
-		$response = wp_remote_request(
-			$this->base_url . $url,
-			array(
-				'body'    => $deal_details,
-				'headers' => $headers,
-				'method'  => 'PUT',
-			)
-		);
-		if ( is_wp_error( $response ) ) {
-			$status_code = $response->get_error_code();
-			$res_message = $response->get_error_message();
-		} else {
-			$status_code = wp_remote_retrieve_response_code( $response );
-			$res_message = wp_remote_retrieve_response_message( $response );
-			$res_body    = wp_remote_retrieve_body( $response );
-		}
 		$parsed_response = array(
-			'status_code' => $status_code,
-			'response'    => $res_message,
-			'body'        => $res_body,
+			'status_code' => 400,
+			'response'    => 'V1 older API not running',
+			'body'        => [],
 		);
-		$message         = __( 'Updating HubSpot Deals', 'makewebbetter-hubspot-for-woocommerce' );
-		$this->create_log( $message, $url, $parsed_response, 'deals' );
+
+		if ( !empty( $deal_id ) && is_array($deal_details) && count( $deal_details ) ) {
+			$deal_properties = $deal_details['properties'];
+			$modified_deal_properties = array();
+			foreach ($deal_properties as $key => $property) {
+				$modified_deal_properties[$property['name']] = $property['value'];
+			}
+			$modified_deal_properties = array('properties' => $modified_deal_properties);
+			$parsed_response = self::update_object_record('deal', $deal_id, $modified_deal_properties);
+		}
+
 		return $parsed_response;
 	}
 
 	/**
-	 * Creating groups for deals on HubSpot.
+	 * Create a deal group / Use_V1_compatibility_since_1.6.5
 	 *
 	 * @since 1.0.0
 	 * @param array $deal_groups formatted array for deal groups.
 	 * @return array $parsed_response formatted array for API response.
 	 */
-	public function create_deal_group( $deal_groups ) {
-
-		$url             = '/properties/v1/deals/groups/';
-		$headers         = $this->get_token_headers();
+	public function create_deal_group( $deal_group ) {
 		$parsed_response = array(
 			'status_code' => 400,
-			'response'    => 'error',
+			'response'    => 'V1 older API not running',
+			'body'        => [],
 		);
-		if ( is_array( $deal_groups ) && count( $deal_groups ) ) {
-			$deal_details = wp_json_encode( $deal_groups );
-			$response     = wp_remote_post(
-				$this->base_url . $url,
-				array(
-					'body'    => $deal_details,
-					'headers' => $headers,
-				)
-			);
-			$message      = __( 'Creating deal custom groups', 'makewebbetter-hubspot-for-woocommerce' );
-			if ( is_wp_error( $response ) ) {
-				$status_code = $response->get_error_code();
-				$res_message = $response->get_error_message();
-			} else {
-				$status_code = wp_remote_retrieve_response_code( $response );
-				$res_message = wp_remote_retrieve_response_message( $response );
+
+		if ( is_array( $deal_group ) && count( $deal_group ) ) {
+			if ( isset( $deal_group['name'] ) && isset( $deal_group['displayName'] ) ) {
+				$deal_group['label'] = $deal_group['displayName'];
+				unset($deal_group['displayName']);
+				$parsed_response = self::create_group($deal_group, 'deal');
 			}
-			$parsed_response = array(
-				'status_code' => $status_code,
-				'response'    => $res_message,
-			);
-			$this->create_log( $message, $url, $parsed_response, 'groups' );
-			return $parsed_response;
 		}
+
+		return $parsed_response;
 	}
 
 	/**
-	 * Creating properties for deals.
+	 * Create a deal property / Use_V1_compatibility_since_1.6.5
 	 *
 	 * @since 1.0.0
 	 * @param array $prop_details formatted array for creating deal property.
 	 * @return array $parsed_response formatted response from API.
 	 */
 	public function create_deal_property( $prop_details ) {
+		$parsed_response = array(
+			'status_code' => 400,
+			'response'    => 'V1 older API not running',
+			'body'        => [],
+		);
 
-		$url = '/properties/v1/deals/properties/';
-		if ( is_array( $prop_details ) ) {
+		if ( is_array( $prop_details ) && count( $prop_details ) ) {
 			if ( isset( $prop_details['name'] ) && isset( $prop_details['groupName'] ) ) {
-				$url             = '/properties/v1/deals/properties/';
-				$headers         = $this->get_token_headers();
-				$parsed_response = array(
-					'status_code' => 400,
-					'response'    => 'error',
-				);
-				$prop_details    = wp_json_encode( $prop_details );
-				$response        = wp_remote_post(
-					$this->base_url . $url,
-					array(
-						'body'    => $prop_details,
-						'headers' => $headers,
-					)
-				);
-				$message         = __( 'Creating deal custom properties', 'makewebbetter-hubspot-for-woocommerce' );
-				if ( is_wp_error( $response ) ) {
-					$status_code = $response->get_error_code();
-					$res_message = $response->get_error_message();
-				} else {
-					$status_code = wp_remote_retrieve_response_code( $response );
-					$res_message = wp_remote_retrieve_response_message( $response );
-				}
-				$parsed_response = array(
-					'status_code' => $status_code,
-					'response'    => $res_message,
-				);
-				$this->create_log( $message, $url, $parsed_response, 'properties' );
-				return $parsed_response;
+				$parsed_response = self::create_property($prop_details, 'deal');
 			}
 		}
+
+		return $parsed_response;
 	}
 
 	/**
-	 * Updating deal properties.
+	 * Updating a deal property / Use_V1_compatibility_since_1.6.5
 	 *
 	 * @since 1.0.0
 	 * @param array $deal_property details to create new deal.
 	 * @return array $response api response.
 	 */
 	public function update_deal_property( $deal_property ) {
+		$parsed_response = array(
+			'status_code' => 400,
+			'response'    => 'V1 older API not running',
+			'body'        => [],
+		);
 
-		if ( is_array( $deal_property ) ) {
+		if ( is_array( $deal_property ) && count( $deal_property ) ) {
 			if ( isset( $deal_property['name'] ) && isset( $deal_property['groupName'] ) ) {
-				$url           = '/properties/v1/deals/properties/named/' . $deal_property['name'];
-				$headers       = $this->get_token_headers();
-				$deal_property = json_encode( $deal_property );
-				$response      = wp_remote_request(
-					$this->base_url . $url,
-					array(
-						'body'    => $deal_property,
-						'headers' => $headers,
-						'method'  => 'PUT',
-					)
-				);
-
-				if ( is_wp_error( $response ) ) {
-					$status_code = $response->get_error_code();
-					$res_message = $response->get_error_message();
-				} else {
-					$status_code = wp_remote_retrieve_response_code( $response );
-					$res_message = wp_remote_retrieve_response_message( $response );
-				}
-				$parsed_response = array(
-					'status_code' => $status_code,
-					'response'    => $res_message,
-				);
-
-				$message = __( 'Updating HubSpot Deal Properties', 'makewebbetter-hubspot-for-woocommerce' );
-				$this->create_log( $message, $url, $parsed_response, 'properties' );
-				return $parsed_response;
+				$parsed_response = self::update_property($deal_property, 'deal');
 			}
 		}
+
+		return $parsed_response;
 	}
 
 	/**
@@ -2344,40 +2243,34 @@ class HubWooConnectionMananager {
 	}
 
 	/**
-	 * Creating deals on HubSpot.
+	 * Create deals on HubSpot / Use_V1_compatibility_since_1.6.5
 	 *
 	 * @since 1.0.0
 	 * @param array $deal_details details to create new deal.
 	 * @return array $parsed_response formatted array with status/response.
 	 */
-	public function create_new_deal( $deal_details ) {
-
-		$url          = '/deals/v1/deal/';
-		$headers      = $this->get_token_headers();
-		$res_body     = '';
-		$deal_details = wp_json_encode( $deal_details );
-		$response     = wp_remote_post(
-			$this->base_url . $url,
-			array(
-				'body'    => $deal_details,
-				'headers' => $headers,
-			)
-		);
-		if ( is_wp_error( $response ) ) {
-			$status_code = $response->get_error_code();
-			$res_message = $response->get_error_message();
-		} else {
-			$status_code = wp_remote_retrieve_response_code( $response );
-			$res_message = wp_remote_retrieve_response_message( $response );
-			$res_body    = wp_remote_retrieve_body( $response );
-		}
+	public function create_new_deal($deal_details)
+	{
 		$parsed_response = array(
-			'status_code' => $status_code,
-			'response'    => $res_message,
-			'body'        => $res_body,
+			'status_code' => 400,
+			'response'    => 'V1 older API not running',
+			'body'        => [],
 		);
-		$message         = esc_html__( 'Creating New deal', 'makewebbetter-hubspot-for-woocommerce' );
-		$this->create_log( $message, $url, $parsed_response, 'deals' );
+
+		if(!empty($deal_details)){
+			$deal_properties = array();
+			$v1_deal_properties = $deal_details['properties'];
+			if (is_array($v1_deal_properties) && !empty($v1_deal_properties)) {
+				foreach ($v1_deal_properties as $deal_property) {
+					$deal_properties[$deal_property['name']] = $deal_property['value'];
+				}
+			}
+			if (count($deal_properties)) {
+				$deal_properties = array('properties' => $deal_properties);
+				$parsed_response = self::get_instance()->create_object_record('deal', $deal_properties);
+			}
+		}
+
 		return $parsed_response;
 	}
 
@@ -2783,42 +2676,32 @@ class HubWooConnectionMananager {
 	}
 
 	/**
-	 * Get Batch contacts from emails.
+	 * Get Batch contacts from emails / Use_V1_compatibility_since_1.6.5.
 	 *
 	 * @since 1.0.0
-	 * @param array $batch_emails batch email string.
+	 * @param string $batch_emails batch email string.
 	 * @return array $response formatted aray for response.
 	 */
 	public function hubwoo_get_batch_vids( $batch_emails ) {
 
-		$url      = '/contacts/v1/contact/emails/batch/?' . $batch_emails . 'property=email';
-		$headers  = $this->get_token_headers();
-		$res_body = '';
-
-		$batch_emails = json_encode( $batch_emails );
-
-		$response = wp_remote_get(
-			$this->base_url . $url,
-			array(
-				'headers' => $headers,
-			)
-		);
-
-		if ( is_wp_error( $response ) ) {
-			$status_code = $response->get_error_code();
-			$res_message = $response->get_error_message();
-		} else {
-			$status_code = wp_remote_retrieve_response_code( $response );
-			$res_message = wp_remote_retrieve_response_message( $response );
-			$res_body    = wp_remote_retrieve_body( $response );
-		}
 		$parsed_response = array(
-			'status_code' => $status_code,
-			'response'    => $res_message,
-			'body'        => $res_body,
+			'status_code' => 400,
+			'response'    => 'V1 older API not running',
+			'body'        => [],
 		);
-		$message         = __( 'Fetching Batch Vids', 'makewebbetter-hubspot-for-woocommerce' );
-		$this->create_log( $message, $url, $parsed_response, 'contacts' );
+
+		if(!empty($batch_emails)){
+			$modified_request = array();
+			$inputs = array();
+			$emails = explode('&', $batch_emails);
+			foreach ($emails as $email) {
+				$extracted_email = str_replace('email=','',$email);
+				$inputs[] = array('id'=>$extracted_email);
+			}
+			$modified_request = array('inputs' => $inputs, 'idProperty' => 'email');
+			$parsed_response = self::get_instance()->get_batch_object_record('contact', $modified_request);
+		}
+		
 		return $parsed_response;
 	}
 
@@ -2938,6 +2821,87 @@ class HubWooConnectionMananager {
 		);
 		$message         = __( 'Updating HubSpot Products', 'makewebbetter-hubspot-for-woocommerce' );
 		$this->create_log( $message, $url, $parsed_response, 'products' );
+		return $parsed_response;
+	}
+
+	/**
+	 * Get contact id by email.
+	 *
+	 * @since    1.6.5
+	 * @param string $email Contact email address.
+	 * @return array $parsed_response Formatted array with status/response.
+	 */
+	public function get_contact_by_email( $email ) {
+		$url = '/crm/v3/objects/contacts/' . $email . '?idProperty=email';
+		$headers = $this->get_token_headers();
+		$response = wp_remote_get(
+			$this->base_url . $url,
+			array(
+				'headers' => $headers,
+			)
+		);
+
+		$res_body = '';
+		if ( is_wp_error( $response ) ) {
+			$status_code = $response->get_error_code();
+			$res_message = $response->get_error_message();
+		} else {
+			$status_code = wp_remote_retrieve_response_code( $response );
+			$res_message = wp_remote_retrieve_response_message( $response );
+			$res_body = wp_remote_retrieve_body( $response );
+		}
+		$parsed_response = array(
+			'status_code' => $status_code,
+			'response' => $res_message,
+			'body' => $res_body,
+		);
+
+		$message = esc_html__( 'Fetching Contact by email', 'makewebbetter-hubspot-for-woocommerce' );
+		$this->create_log( $message, $url, $parsed_response, 'contacts' );
+		return $parsed_response;
+	}
+
+	/**
+	 * Get single object record with properties and associations.
+	 *
+	 * @since    1.6.5
+	 * @param string $object_type Hubspot object type.
+	 * @param int $object_id Hubspot object id.
+	 * @param array $additional_params An associative array of arrays with 'properties' and 'associations' index.
+	 * @return array $parsed_response Formatted array with status/response.
+	 */
+	public function get_object_record_additional_information( $object_type, $object_id, $additional_params ) {
+		$params_str = '';
+		foreach($additional_params as $param => $values){
+			if(strlen($params_str)!=0){
+				$params_str .= '&';
+			}
+			$params_str .= $param.'='.implode(",",$values);
+		}
+		$url = '/crm/v3/objects/' . $object_type . '/' . $object_id.'?'.$params_str;
+		$headers = $this->get_token_headers();
+		$response = wp_remote_get(
+			$this->base_url . $url,
+			array(
+				'headers' => $headers,
+			)
+		);
+		if ( is_wp_error( $response ) ) {
+			$status_code = $response->get_error_code();
+			$res_message = $response->get_error_message();
+		} else {
+			$status_code = wp_remote_retrieve_response_code( $response );
+			$res_message = wp_remote_retrieve_response_message( $response );
+			$res_body = wp_remote_retrieve_body( $response );
+		}
+		$parsed_response = array(
+			'status_code' => $status_code,
+			'response' => $res_message,
+			'body' => $res_body,
+		);
+		$message = esc_html__( 'Fetching ' . $object_type . ' object', 'makewebbetter-hubspot-for-woocommerce' );
+		$this->create_log( $message, $url, $parsed_response, $object_type );
+
 		return $parsed_response;
 	}
 

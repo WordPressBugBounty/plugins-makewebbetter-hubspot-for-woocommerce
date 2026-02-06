@@ -43,7 +43,7 @@ class HubwooGuestOrdersManager {
 		//hpos changes
 		$order = wc_get_order( $order_id );
 
-		return $order->get_meta($property_name, true);
+		return Hubwoo::hubwoo_hpos_get_meta_data($order, $property_name, true);
 	}
 
 	/**
@@ -196,33 +196,34 @@ class HubwooGuestOrdersManager {
 		);
 
 		$last_order            = ! empty( $customer_orders ) && is_array( $customer_orders ) ? $customer_orders[0] : '';
-		$last_order_object	   = wc_get_order($last_order);
-		$order_tracking_number = $last_order_object->get_meta('_wc_shipment_tracking_items', true);
-		if ( ! empty( $order_tracking_number ) ) {
+		if(!empty($last_order)){
+			$last_order_object	   = wc_get_order($last_order);
+			$order_tracking_number = Hubwoo::hubwoo_hpos_get_meta_data($last_order_object, '_wc_shipment_tracking_items', true);
+			if ( ! empty( $order_tracking_number ) ) {
 
-			$shipment_data = $order_tracking_number[0];
-
-			if ( ! empty( $shipment_data['date_shipped'] ) ) {
-				$guest_user_properties[] = array(
-					'property' => 'last_order_shipment_date',
-					'value'    => self::hubwoo_set_utc_midnight( $shipment_data['date_shipped'] ),
-				);
-			}
-			if ( ! empty( $shipment_data['tracking_number'] ) ) {
-				$guest_user_properties[] = array(
-					'property' => 'last_order_tracking_number',
-					'value'    => $shipment_data['tracking_number'],
-				);
-			}
-			if ( ! empty( $shipment_data['custom_tracking_link'] ) ) {
-				$guest_user_properties[] = array(
-					'property' => 'last_order_tracking_url',
-					'value'    => $shipment_data['custom_tracking_link'],
-				);
+				$shipment_data = $order_tracking_number[0];
+				if ( ! empty( $shipment_data['date_shipped'] ) ) {
+					$guest_user_properties[] = array(
+						'property' => 'last_order_shipment_date',
+						'value'    => self::hubwoo_set_utc_midnight( $shipment_data['date_shipped'] ),
+					);
+				}
+				if ( ! empty( $shipment_data['tracking_number'] ) ) {
+					$guest_user_properties[] = array(
+						'property' => 'last_order_tracking_number',
+						'value'    => $shipment_data['tracking_number'],
+					);
+				}
+				if ( ! empty( $shipment_data['custom_tracking_link'] ) ) {
+					$guest_user_properties[] = array(
+						'property' => 'last_order_tracking_url',
+						'value'    => $shipment_data['custom_tracking_link'],
+					);
+				}
 			}
 		}
 
-		$optin         = $order->get_meta('hubwoo_checkout_marketing_optin', true);
+		$optin         = Hubwoo::hubwoo_hpos_get_meta_data($order, 'hubwoo_checkout_marketing_optin', true);
 		$optin_sources = array();
 		if ( ! empty( $optin ) && 'yes' == $optin ) {
 			$optin_sources[] = 'checkout';

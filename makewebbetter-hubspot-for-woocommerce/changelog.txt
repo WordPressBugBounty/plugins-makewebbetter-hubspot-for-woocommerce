@@ -1,6 +1,15 @@
  *** MWB HubSpot for WooCommerce Changelog ***
 
-2025-05-29 - version 1.6.2
+2026-01-29 - version 1.6.5
+* Fix   - Migrated CRM API from v1 to v3.
+
+2025-12-12 - version 1.6.4
+* Fix   - Minor Fixes.
+
+2025-11-04 - version 1.6.3
+* Fix   - Fix select2 JS.
+
+2025-05-30 - version 1.6.2
 * Fix   - Check scheduler status.
 
 2025-02-12 - version 1.6.1

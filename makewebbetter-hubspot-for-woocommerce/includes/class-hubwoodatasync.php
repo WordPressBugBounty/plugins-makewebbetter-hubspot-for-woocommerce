@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Handling data for sync.
  *
@@ -18,7 +19,8 @@
  * @package    makewebbetter-hubspot-for-woocommerce
  * @subpackage makewebbetter-hubspot-for-woocommerce/includes
  */
-class HubwooDataSync {
+class HubwooDataSync
+{
 
 	/**
 	 * Retreive all of the
@@ -193,7 +195,8 @@ class HubwooDataSync {
 	 * @param array $hubwoo_orders array of order to be synced.
 	 * @param bool  $only_email true/false.
 	 */
-	public static function get_guest_sync_data( $hubwoo_orders, $only_email = false ) {
+	public static function get_guest_sync_data($hubwoo_orders, $only_email = false)
+	{
 
 		global $hubwoo;
 
@@ -201,35 +204,34 @@ class HubwooDataSync {
 		$guest_contacts        = array();
 		$guest_user_properties = array();
 
-		if ( ! empty( $hubwoo_orders ) && count( $hubwoo_orders ) ) {
+		if (! empty($hubwoo_orders) && count($hubwoo_orders)) {
 
-			foreach ( $hubwoo_orders as $order_id ) {
+			foreach ($hubwoo_orders as $order_id) {
 
-				$hubwoo_guest_order = wc_get_order( $order_id );
+				$hubwoo_guest_order = wc_get_order($order_id);
 
-				if ( $hubwoo_guest_order instanceof WC_Order ) {
+				if ($hubwoo_guest_order instanceof WC_Order) {
 
 					$guest_email = $hubwoo_guest_order->get_billing_email();
 
-					if ( ! empty( $guest_email ) && $only_email ) {
+					if (! empty($guest_email) && $only_email) {
 						$guest_user_emails[] = $guest_email;
 						continue;
 					}
 
-					if ( empty( $guest_email ) ) {
-
-						$hubwoo_guest_order->delete_meta_data('hubwoo_pro_guest_order');
+					if (empty($guest_email)) {
+						HubWoo::hubwoo_hpos_delete_meta_data($hubwoo_guest_order, 'hubwoo_pro_guest_order');
 						continue;
 					}
 
-					$guest_order_callback = new HubwooGuestOrdersManager( $order_id );
+					$guest_order_callback = new HubwooGuestOrdersManager($order_id);
 
-					$guest_user_properties = $guest_order_callback->get_order_related_properties( $order_id, $guest_email );
+					$guest_user_properties = $guest_order_callback->get_order_related_properties($order_id, $guest_email);
 
-					$guest_user_properties = $hubwoo->hubwoo_filter_contact_properties( $guest_user_properties );
+					$guest_user_properties = $hubwoo->hubwoo_filter_contact_properties($guest_user_properties);
 
 					$fname = $hubwoo_guest_order->get_billing_first_name();
-					if ( ! empty( $fname ) ) {
+					if (! empty($fname)) {
 						$guest_user_properties[] = array(
 							'property' => 'firstname',
 							'value'    => $fname,
@@ -237,7 +239,7 @@ class HubwooDataSync {
 					}
 
 					$lname = $hubwoo_guest_order->get_billing_last_name();
-					if ( ! empty( $lname ) ) {
+					if (! empty($lname)) {
 						$guest_user_properties[] = array(
 							'property' => 'lastname',
 							'value'    => $lname,
@@ -245,7 +247,7 @@ class HubwooDataSync {
 					}
 
 					$cname = $hubwoo_guest_order->get_billing_company();
-					if ( ! empty( $cname ) ) {
+					if (! empty($cname)) {
 						$guest_user_properties[] = array(
 							'property' => 'company',
 							'value'    => $cname,
@@ -253,7 +255,7 @@ class HubwooDataSync {
 					}
 
 					$city = $hubwoo_guest_order->get_billing_city();
-					if ( ! empty( $city ) ) {
+					if (! empty($city)) {
 						$guest_user_properties[] = array(
 							'property' => 'city',
 							'value'    => $city,
@@ -261,7 +263,7 @@ class HubwooDataSync {
 					}
 
 					$state = $hubwoo_guest_order->get_billing_state();
-					if ( ! empty( $state ) ) {
+					if (! empty($state)) {
 						$guest_user_properties[] = array(
 							'property' => 'state',
 							'value'    => $state,
@@ -269,16 +271,16 @@ class HubwooDataSync {
 					}
 
 					$country = $hubwoo_guest_order->get_billing_country();
-					if ( ! empty( $country ) ) {
+					if (! empty($country)) {
 						$guest_user_properties[] = array(
 							'property' => 'country',
-							'value'    => Hubwoo::map_country_by_abbr( $country ),
+							'value'    => Hubwoo::map_country_by_abbr($country),
 						);
 					}
 
 					$address1 = $hubwoo_guest_order->get_billing_address_1();
 					$address2 = $hubwoo_guest_order->get_billing_address_2();
-					if ( ! empty( $address1 ) || ! empty( $address2 ) ) {
+					if (! empty($address1) || ! empty($address2)) {
 						$address                 = $address1 . ' ' . $address2;
 						$guest_user_properties[] = array(
 							'property' => 'address',
@@ -287,7 +289,7 @@ class HubwooDataSync {
 					}
 
 					$zip = $hubwoo_guest_order->get_billing_postcode();
-					if ( ! empty( $zip ) ) {
+					if (! empty($zip)) {
 						$guest_user_properties[] = array(
 							'property' => 'zip',
 							'value'    => $zip,
@@ -296,7 +298,7 @@ class HubwooDataSync {
 
 					$guest_phone = $hubwoo_guest_order->get_billing_phone();
 
-					if ( ! empty( $guest_phone ) ) {
+					if (! empty($guest_phone)) {
 						$guest_user_properties[] = array(
 							'property' => 'mobilephone',
 							'value'    => $guest_phone,
@@ -308,18 +310,18 @@ class HubwooDataSync {
 					}
 
 					$customer_new_order_flag = 'no';
-					$prop_index              = array_search( 'customer_new_order', array_column( $guest_user_properties, 'property' ) );
+					$prop_index              = array_search('customer_new_order', array_column($guest_user_properties, 'property'));
 
-					if ( Hubwoo_Admin::hubwoo_check_for_properties( 'order_recency_rating', 5, $guest_user_properties ) ) {
+					if (Hubwoo_Admin::hubwoo_check_for_properties('order_recency_rating', 5, $guest_user_properties)) {
 
-						if ( Hubwoo_Admin::hubwoo_check_for_properties( 'last_order_status', get_option( 'hubwoo_no_status', 'wc-completed' ), $guest_user_properties ) ) {
+						if (Hubwoo_Admin::hubwoo_check_for_properties('last_order_status', get_option('hubwoo_no_status', 'wc-completed'), $guest_user_properties)) {
 
 							$customer_new_order_flag = 'yes';
 						}
 					}
 
-					if ( $prop_index ) {
-						$guest_user_properties[ $prop_index ]['value'] = $customer_new_order_flag;
+					if ($prop_index) {
+						$guest_user_properties[$prop_index]['value'] = $customer_new_order_flag;
 					} else {
 						$guest_user_properties[] = array(
 							'property' => 'customer_new_order',
@@ -327,7 +329,7 @@ class HubwooDataSync {
 						);
 					}
 
-					$guest_user_properties = apply_filters( 'hubwoo_map_ecomm_guest_CONTACT_properties', $guest_user_properties, $order_id );
+					$guest_user_properties = apply_filters('hubwoo_map_ecomm_guest_CONTACT_properties', $guest_user_properties, $order_id);
 
 					$guest_user_properties_data = array(
 						'email'      => $guest_email,
@@ -336,7 +338,173 @@ class HubwooDataSync {
 
 					$guest_contacts[] = $guest_user_properties_data;
 
-					$hubwoo_guest_order->delete_meta_data('hubwoo_pro_guest_order');
+					Hubwoo::hubwoo_hpos_delete_meta_data($hubwoo_guest_order, 'hubwoo_pro_guest_order');
+				}
+			}
+		}
+		$response = $only_email ? $guest_user_emails : $guest_contacts;
+
+		return $response;
+	}
+
+	/**
+	 * Retrieve guest user data v3
+	 *
+	 * @param array $hubwoo_orders array of order ids to sync
+	 * @param string $sync_type Mention real/historical data to fetch
+	 * @param bool  $only_email true/false.
+	 */
+	public static function get_guest_sync_data_v3($hubwoo_orders, $sync_type, $only_email = false)
+	{
+		global $hubwoo;
+
+		$guest_user_emails     = array();
+		$guest_contacts        = array();
+		$guest_user_properties = array();
+
+		$real_user_roles = get_option('hubwoo-selected-user-roles', array());
+		if (empty($real_user_roles)) {
+			$real_user_roles = array_keys(Hubwoo_Admin::get_all_user_roles());
+			update_option('hubwoo-selected-user-roles', $real_user_roles);
+		}
+		$historical_user_roles = get_option('hubwoo_customers_role_settings', array());
+		if (empty($historical_user_roles)) {
+			$historical_user_roles = array_keys(Hubwoo_Admin::get_all_user_roles());
+			update_option('hubwoo_customers_role_settings', $historical_user_roles);
+		}
+		$roles_to_check = $sync_type == 'real' ? $real_user_roles : $historical_user_roles;
+		if (in_array('guest_user', $roles_to_check)) {
+			if (! empty($hubwoo_orders) && count($hubwoo_orders)) {
+
+				foreach ($hubwoo_orders as $order_id) {
+					$guest_user_properties = array();
+					$contact = array();
+					$hubwoo_guest_order = wc_get_order($order_id);
+					if ($hubwoo_guest_order instanceof WC_Order) {
+						$guest_email = $hubwoo_guest_order->get_billing_email();
+
+						if (! empty($guest_email) && $only_email) {
+							$guest_user_emails[] = $guest_email;
+							continue;
+						}
+
+						if (empty($guest_email)) {
+							Hubwoo::hubwoo_hpos_update_meta_data($hubwoo_guest_order,'hubwoo_invalid_contact','yes');
+							Hubwoo::hubwoo_hpos_update_meta_data($hubwoo_guest_order,'hubwoo_pro_guest_order','synced');
+							continue;
+						}
+
+						$guest_order_callback = new HubwooGuestOrdersManager($order_id);
+						$guest_user_properties = $guest_order_callback->get_order_related_properties($order_id, $guest_email);
+						$fname = $hubwoo_guest_order->get_billing_first_name();
+						if (! empty($fname)) {
+							$guest_user_properties[] = array(
+								'property' => 'firstname',
+								'value'    => $fname,
+							);
+						}
+
+						$lname = $hubwoo_guest_order->get_billing_last_name();
+						if (! empty($lname)) {
+							$guest_user_properties[] = array(
+								'property' => 'lastname',
+								'value'    => $lname,
+							);
+						}
+
+						$cname = $hubwoo_guest_order->get_billing_company();
+						if (! empty($cname)) {
+							$guest_user_properties[] = array(
+								'property' => 'company',
+								'value'    => $cname,
+							);
+						}
+
+						$city = $hubwoo_guest_order->get_billing_city();
+						if (! empty($city)) {
+							$guest_user_properties[] = array(
+								'property' => 'city',
+								'value'    => $city,
+							);
+						}
+
+						$state = $hubwoo_guest_order->get_billing_state();
+						if (! empty($state)) {
+							$guest_user_properties[] = array(
+								'property' => 'state',
+								'value'    => $state,
+							);
+						}
+
+						$country = $hubwoo_guest_order->get_billing_country();
+						if (! empty($country)) {
+							$guest_user_properties[] = array(
+								'property' => 'country',
+								'value'    => Hubwoo::map_country_by_abbr($country),
+							);
+						}
+
+						$address1 = $hubwoo_guest_order->get_billing_address_1();
+						$address2 = $hubwoo_guest_order->get_billing_address_2();
+						if (! empty($address1) || ! empty($address2)) {
+							$address                 = $address1 . ' ' . $address2;
+							$guest_user_properties[] = array(
+								'property' => 'address',
+								'value'    => $address,
+							);
+						}
+
+						$zip = $hubwoo_guest_order->get_billing_postcode();
+						if (! empty($zip)) {
+							$guest_user_properties[] = array(
+								'property' => 'zip',
+								'value'    => $zip,
+							);
+						}
+
+						$guest_phone = $hubwoo_guest_order->get_billing_phone();
+
+						if (! empty($guest_phone)) {
+							$guest_user_properties[] = array(
+								'property' => 'mobilephone',
+								'value'    => $guest_phone,
+							);
+							$guest_user_properties[] = array(
+								'property' => 'phone',
+								'value'    => $guest_phone,
+							);
+						}
+
+						$customer_new_order_flag = 'no';
+						if (Hubwoo_Admin::hubwoo_check_for_properties('order_recency_rating', 5, $guest_user_properties)) {
+							if (Hubwoo_Admin::hubwoo_check_for_properties('last_order_status', get_option('hubwoo_no_status', 'wc-completed'), $guest_user_properties)) {
+								$customer_new_order_flag = 'yes';
+							}
+						}
+
+						$prop_index = array_search('customer_new_order', array_column($guest_user_properties, 'property'));
+						if ($prop_index) {
+							$guest_user_properties[$prop_index]['value'] = $customer_new_order_flag;
+						} else {
+							$guest_user_properties[] = array(
+								'property' => 'customer_new_order',
+								'value'    => $customer_new_order_flag,
+							);
+						}
+
+						foreach ($guest_user_properties as $key => $value) {
+							$contact[$value['property']] = $value['value'];
+						}
+						$contact['email'] = $guest_email;
+						$guest_user_properties = apply_filters('hubwoo_map_ecomm_guest_CONTACT_properties', $contact, $order_id);
+						$contact = array(
+							'id' => $guest_email,
+							'idProperty' => 'email',
+							'properties' => $contact,
+						);
+
+						$guest_contacts[] = $contact;
+					}
 				}
 			}
 		}
@@ -348,14 +516,15 @@ class HubwooDataSync {
 	/**
 	 * Scheduling Background Tasks
 	 */
-	public function schedule_background_task() {
+	public function schedule_background_task()
+	{
 
-		delete_option( 'hubwoo_ocs_data_synced' );
-		delete_option( 'hubwoo_ocs_contacts_synced' );
-		update_option( 'hubwoo_background_process_running', true );
+		delete_option('hubwoo_ocs_data_synced');
+		delete_option('hubwoo_ocs_contacts_synced');
+		update_option('hubwoo_background_process_running', true);
 
-		if ( ! as_next_scheduled_action( 'hubwoo_contacts_sync_background' ) ) {
-			as_schedule_recurring_action( time(), 300, 'hubwoo_contacts_sync_background' );
+		if (! as_next_scheduled_action('hubwoo_contacts_sync_background')) {
+			as_schedule_recurring_action(time(), 300, 'hubwoo_contacts_sync_background');
 		}
 	}
 
@@ -363,11 +532,12 @@ class HubwooDataSync {
 	 * Starts Scheduling once
 	 * the data has been retrieved
 	 */
-	public function hubwoo_start_schedule() {
+	public function hubwoo_start_schedule()
+	{
 
-		$hubwoo_unique_users = $this->hubwoo_get_all_unique_user( true );
+		$hubwoo_unique_users = $this->hubwoo_get_all_unique_user(true);
 
-		if ( $hubwoo_unique_users ) {
+		if ($hubwoo_unique_users) {
 			$this->schedule_background_task();
 		}
 	}
@@ -379,35 +549,36 @@ class HubwooDataSync {
 	 * @param array $hubwoo_unique_users array of users to sync.
 	 * @return User Data
 	 */
-	public static function get_sync_data( $hubwoo_unique_users ) {
+	public static function get_sync_data($hubwoo_unique_users)
+	{
 
 		// basic data function for user ids.
 		$contacts = array();
-		$role__in = get_option( 'hubwoo-selected-user-roles', array() );
-		$user_role_in = get_option( 'hubwoo_customers_role_settings', array() );
+		$role__in = get_option('hubwoo-selected-user-roles', array());
+		$user_role_in = get_option('hubwoo_customers_role_settings', array());
 
-		if ( ! empty( $hubwoo_unique_users ) && count( $hubwoo_unique_users ) ) {
+		if (! empty($hubwoo_unique_users) && count($hubwoo_unique_users)) {
 
-			foreach ( $hubwoo_unique_users as $key => $id ) {
+			foreach ($hubwoo_unique_users as $key => $id) {
 
-				$hubwoo_customer = new HubWooCustomer( $id );
+				$hubwoo_customer = new HubWooCustomer($id);
 
 				$email     = $hubwoo_customer->get_email();
-				$user_data = get_user_by( 'email', $email );
+				$user_data = get_user_by('email', $email);
 
-				if( ! empty( $user_data ) ) {
+				if (! empty($user_data)) {
 
-					if( ! empty( $user_data->roles[0] ) ) {
-						
+					if (! empty($user_data->roles[0])) {
+
 						$role = $user_data->roles[0];
-						if ( in_array( $role, $role__in ) || in_array( $role, $user_role_in ) ) {
+						if (in_array($role, $role__in) || in_array($role, $user_role_in)) {
 
-							if ( empty( $email ) ) {
-								delete_user_meta( $id, 'hubwoo_pro_user_data_change' );
+							if (empty($email)) {
+								delete_user_meta($id, 'hubwoo_pro_user_data_change');
 								continue;
 							}
 							$properties      = $hubwoo_customer->get_contact_properties();
-							$user_properties = $hubwoo_customer->get_user_data_properties( $properties );
+							$user_properties = $hubwoo_customer->get_user_data_properties($properties);
 							$properties_data = array(
 								'email'      => $email,
 								'properties' => $user_properties,
@@ -421,5 +592,68 @@ class HubwooDataSync {
 		}
 		return $contacts;
 	}
-}
 
+	/**
+	 * Retrieving registered user data
+	 *
+	 * @param array $hubwoo_unique_users Array of users ids to sync
+	 * @param string $sync_type Mention real/historical data to fetch
+	 * @return User Data
+	 */
+	public static function get_sync_data_v3($hubwoo_unique_users, $sync_type)
+	{
+		$contacts = array();
+		$real_user_roles = get_option('hubwoo-selected-user-roles', array());
+		if (empty($real_user_roles)) {
+			$real_user_roles = array_keys(Hubwoo_Admin::get_all_user_roles());
+			update_option('hubwoo-selected-user-roles', $real_user_roles);
+		}
+		$historical_user_roles = get_option('hubwoo_customers_role_settings', array());
+		if (empty($historical_user_roles)) {
+			$historical_user_roles = array_keys(Hubwoo_Admin::get_all_user_roles());
+			update_option('hubwoo_customers_role_settings', $historical_user_roles);
+		}
+
+		if (count($hubwoo_unique_users)) {
+			foreach ($hubwoo_unique_users as $curr_user_id) {
+
+				$hubwoo_customer = new HubWooCustomer($curr_user_id);
+				$email = $hubwoo_customer->get_email();
+				if (empty($email)) {
+					update_user_meta($curr_user_id, 'hubwoo_invalid_contact', 'yes');
+					update_user_meta($curr_user_id, 'hubwoo_pro_user_data_change', 'synced');
+					continue;
+				}
+				$curr_user_data = get_user_by('email', $email);
+
+				if (! empty($curr_user_data)) {
+					$curr_user_roles = $curr_user_data->roles;
+					if (! empty($curr_user_roles)) {
+						$roles_to_check = $sync_type == 'real' ? $real_user_roles : $historical_user_roles;
+
+						if (!empty(array_intersect($curr_user_roles, $roles_to_check))) {
+
+							$user_properties = $hubwoo_customer->get_contact_properties();
+							$user_properties = $hubwoo_customer->get_user_data_properties($user_properties);
+							if (count($user_properties)) {
+								$contact = array();
+								foreach ($user_properties as $key => $property) {
+									$contact[$property['property']] = $property['value'];
+								}
+								$contact['email'] = $email;
+								$contact = array(
+									'id' => $email,
+									'idProperty' => 'email',
+									'properties' => $contact,
+								);
+
+								$contacts[] = $contact;
+							}
+						}
+					}
+				}
+			}
+		}
+		return $contacts;
+	}
+}

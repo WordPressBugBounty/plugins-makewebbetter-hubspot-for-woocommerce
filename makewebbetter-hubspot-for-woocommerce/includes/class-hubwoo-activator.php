@@ -63,7 +63,7 @@ if ( ! class_exists( 'Hubwoo_Activator' ) ) {
 
 			if ( ! as_next_scheduled_action( 'hubwoo_ecomm_deal_update' ) ) {
 
-				as_schedule_recurring_action( time(), 180, 'hubwoo_ecomm_deal_update' );
+				as_schedule_recurring_action( time(), 300, 'hubwoo_ecomm_deal_update' );
 			}
 
 			if ( ! as_next_scheduled_action( 'hubwoo_products_sync_check' ) ) {

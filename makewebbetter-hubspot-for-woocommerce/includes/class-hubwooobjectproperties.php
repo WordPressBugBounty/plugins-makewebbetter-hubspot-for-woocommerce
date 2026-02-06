@@ -74,76 +74,7 @@ class HubwooObjectProperties
 		$user_email = $user_info['data']['user_email'];
 		$contact['email'] = $user_email;
 
-		$contact = array(
-			'properties' => $contact,
-		);
-
-		if (count($contact)) {
-
-			$flag = true;
-			if (Hubwoo::is_access_token_expired()) {
-				$hapikey = HUBWOO_CLIENT_ID;
-				$hseckey = HUBWOO_SECRET_ID;
-				$status  = HubWooConnectionMananager::get_instance()->hubwoo_refresh_token($hapikey, $hseckey);
-				if (! $status) {
-					$flag = false;
-				}
-			}
-
-			if ($flag) {
-				$filtergps = array(
-					'filterGroups' => array(
-						array(
-							'filters' => array(
-								array(
-									'value' => $user_email,
-									'propertyName' => 'email',
-									'operator' => 'EQ',
-								),
-							),
-						),
-					),
-				);
-				$filtergps = apply_filters('hubwoo_registered_user_search_filter', $filtergps, $user_id);
-
-				$response = HubWooConnectionMananager::get_instance()->search_object_record('contacts', $filtergps);
-				if (200 == $response['status_code']) {
-					$responce_body = json_decode($response['body']);
-					$result = $responce_body->results;
-					if (! empty($result)) {
-						foreach ($result as $key => $value) {
-							update_user_meta($user_id, 'hubwoo_user_vid', $value->id);
-						}
-					} else {
-						delete_user_meta($user_id, 'hubwoo_user_vid');
-					}
-				}
-
-				$hubwoo_user_vid = get_user_meta($user_id, 'hubwoo_user_vid', true);
-				if (! empty($hubwoo_user_vid)) {
-					$response = HubWooConnectionMananager::get_instance()->update_object_record('contacts', $hubwoo_user_vid, $contact);
-					update_user_meta($user_id, 'hubwoo_pro_user_data_change', 'synced');
-				} else {
-					$response = HubWooConnectionMananager::get_instance()->create_object_record('contacts', $contact);
-					if (201 == $response['status_code']) {
-						$contact_vid = json_decode($response['body']);
-						update_user_meta($user_id, 'hubwoo_user_vid', $contact_vid->id);
-						update_user_meta($user_id, 'hubwoo_pro_user_data_change', 'synced');
-					} else if (409 == $response['status_code']) {
-						$contact_vid = json_decode($response['body']);
-						$hs_id = explode('ID: ', $contact_vid->message);
-						$response = HubWooConnectionMananager::get_instance()->update_object_record('contacts', $hs_id[1], $contact);
-						update_user_meta($user_id, 'hubwoo_user_vid', $hs_id[1]);
-						update_user_meta($user_id, 'hubwoo_pro_user_data_change', 'synced');
-					} else if (400 == $response['status_code']) {
-						update_user_meta($user_id, 'hubwoo_invalid_contact', 'yes');
-						update_user_meta($user_id, 'hubwoo_pro_user_data_change', 'synced');
-					}
-				}
-
-				do_action('hubwoo_ecomm_contact_synced', $user_email);
-			}
-		}
+		self::hubwoo_create_update_single_contact($contact, $user_email, 'reg', $user_id);
 	}
 
 	/**
@@ -161,16 +92,13 @@ class HubwooObjectProperties
 
 		$order = wc_get_order($order_id);
 		$guest_email = $order->get_billing_email();
-
-		$contact = array();
-
 		if (! empty($guest_email)) {
+			$contact                                    = array();
 
 			$object_type                                = 'CONTACT';
 			$guest_user_info                            = array();
 			$guest_order_callback                       = new HubwooGuestOrdersManager($order_id);
 			$guest_user_properties                      = $guest_order_callback->get_order_related_properties($order_id, $guest_email);
-			$guest_user_properties                      = $hubwoo->hubwoo_filter_contact_properties($guest_user_properties);
 			foreach ($guest_user_properties as $key => $value) {
 				$guest_user_info[$value['property']] = $value['value'];
 			}
@@ -187,84 +115,10 @@ class HubwooObjectProperties
 			$guest_user_info['billing_postal_code']     = $order->get_billing_postcode();
 			$guest_user_info['lifecyclestage']          = 'customer';
 			$guest_user_info['customer_source_store']   = get_bloginfo('name');
-			$guest_user_info['hs_language']             = $order->get_meta('hubwoo_preferred_language', true);
+			$guest_user_info['hs_language']             = Hubwoo::hubwoo_hpos_get_meta_data($order, 'hubwoo_preferred_language', true);
 			$guest_contact_properties                   = apply_filters('hubwoo_map_ecomm_guest_' . $object_type . '_properties', $guest_user_info, $order_id);
-			$contact = array(
-				'properties' => $guest_contact_properties,
-			);
-		}
-		if (count($contact)) {
 
-			$flag = true;
-
-			if (Hubwoo::is_access_token_expired()) {
-				$hapikey = HUBWOO_CLIENT_ID;
-				$hseckey = HUBWOO_SECRET_ID;
-				$status  = HubWooConnectionMananager::get_instance()->hubwoo_refresh_token($hapikey, $hseckey);
-				if (! $status) {
-					$flag = false;
-				}
-			}
-
-			if ($flag) {
-				$filtergps = array(
-					'filterGroups' => array(
-						array(
-							'filters' => array(
-								array(
-									'value' => $guest_email,
-									'propertyName' => 'email',
-									'operator' => 'EQ',
-								),
-							),
-						),
-					),
-				);
-				$filtergps = apply_filters('hubwoo_guest_user_search_filter', $filtergps, $order_id);
-
-				$response = HubWooConnectionMananager::get_instance()->search_object_record('contacts', $filtergps);
-				if (200 == $response['status_code']) {
-					$responce_body = json_decode($response['body']);
-					$result = $responce_body->results;
-					if (! empty($result)) {
-						foreach ($result as $key => $value) {
-							$order->update_meta_data('hubwoo_user_vid', $value->id);
-							$order->save();
-						}
-					} else {
-						$order->delete_meta_data('hubwoo_user_vid');
-						$order->save();
-					}
-				}
-
-				$hubwoo_user_vid = $order->get_meta('hubwoo_user_vid', true);
-				if (! empty($hubwoo_user_vid)) {
-					$response = HubWooConnectionMananager::get_instance()->update_object_record('contacts', $hubwoo_user_vid, $contact);
-					$order->update_meta_data('hubwoo_pro_guest_order', 'synced');
-					$order->save();
-				} else {
-					$response = HubWooConnectionMananager::get_instance()->create_object_record('contacts', $contact);
-					if (201 == $response['status_code']) {
-						$contact_vid = json_decode($response['body']);
-						$order->update_meta_data('hubwoo_user_vid', $contact_vid->id);
-						$order->update_meta_data('hubwoo_pro_guest_order', 'synced');
-						$order->save();
-					} else if (409 == $response['status_code']) {
-						$contact_vid = json_decode($response['body']);
-						$hs_id = explode('ID: ', $contact_vid->message);
-						$response = HubWooConnectionMananager::get_instance()->update_object_record('contacts', $hs_id[1], $contact);
-						$order->update_meta_data('hubwoo_user_vid', $hs_id[1]);
-						$order->update_meta_data('hubwoo_pro_guest_order', 'synced');
-						$order->save();
-					} else if (400 == $response['status_code']) {
-						$order->update_meta_data('hubwoo_invalid_contact', 'yes');
-						$order->update_meta_data('hubwoo_pro_guest_order', 'synced');
-						$order->save();
-					}
-				}
-
-				do_action('hubwoo_ecomm_contact_synced', $guest_email);
-			}
+			self::hubwoo_create_update_single_contact($guest_contact_properties, $guest_email, 'guest', '', $order);
 		}
 	}
 
@@ -281,13 +135,15 @@ class HubwooObjectProperties
 	public static function hubwoo_ecomm_sync_deal($order_id, $source, $customer_id)
 	{
 		$object_type                 = 'DEAL';
-		$deal_updates                = array();
+		$deal_properties                = array();
+		$order 						 = wc_get_order($order_id);
+		$response                    = array('status_code' => 206);
+
 		$assc_deal_cmpy              = get_option('hubwoo_assoc_deal_cmpy_enable', 'yes');
 		$pipeline_id                 = get_option('hubwoo_ecomm_pipeline_id', false);
 		$hubwoo_ecomm_deal           = new HubwooEcommObject($order_id, $object_type);
 		$deal_properties             = $hubwoo_ecomm_deal->get_object_properties();
-		$deal_properties             = apply_filters('hubwoo_map_ecomm_' . $object_type . '_properties', $deal_properties, $order_id);
-		$order 						 = wc_get_order($order_id);
+
 		if ('yes' == get_option('hubwoo_deal_multi_currency_enable', 'no')) {
 			$currency = $order->get_currency();
 			if (! empty($currency)) {
@@ -299,11 +155,8 @@ class HubwooObjectProperties
 			$pipeline_id = get_option('hubwoo_ecomm_pipeline_id', false);
 		}
 		$deal_properties['pipeline'] = $pipeline_id;
-		$deal_updates   = array(
-			'properties' => $deal_properties,
-		);
 
-		$response          = '';
+		$deal_properties = apply_filters('hubwoo_map_ecomm_' . $object_type . '_properties', $deal_properties, $order_id);
 
 		if ('user' == $source) {
 			$user_info  = json_decode(wp_json_encode(get_userdata($customer_id)), true);
@@ -312,12 +165,13 @@ class HubwooObjectProperties
 			$contact_vid = get_user_meta($customer_id, 'hubwoo_user_vid', true);
 			$invalid_contact = get_user_meta($customer_id, 'hubwoo_invalid_contact', true);
 		} else {
-			$contact_vid = $order->get_meta('hubwoo_user_vid', true);
+			$contact_vid = Hubwoo::hubwoo_hpos_get_meta_data($order, 'hubwoo_user_vid', true);
 			$contact = $order->get_billing_email();
-			$invalid_contact = $order->get_meta('hubwoo_invalid_contact', true);
+			$invalid_contact = Hubwoo::hubwoo_hpos_get_meta_data($order, 'hubwoo_invalid_contact', true);
 		}
 
-		if (count($deal_updates)) {
+		if (count($deal_properties)) {
+			$deal_properties = array('properties' => $deal_properties);
 
 			$flag = true;
 			if (Hubwoo::is_access_token_expired()) {
@@ -348,6 +202,11 @@ class HubwooObjectProperties
 									'propertyName' => 'dealname',
 									'operator' => 'EQ',
 								),
+								array(
+									'value' => $order->get_order_number(),
+									'propertyName' => 'order_number',
+									'operator' => 'EQ',
+								),
 							),
 						),
 					),
@@ -361,52 +220,54 @@ class HubwooObjectProperties
 					$result = $responce_body->results;
 					if (! empty($result)) {
 						foreach ($result as $key => $value) {
-							$order->update_meta_data('hubwoo_ecomm_deal_id', $value->id);
+							Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_ecomm_deal_id', $value->id);
 							$num_of_assoc_line_items = $value->properties->hs_num_of_associated_line_items;
 							if ($num_of_assoc_line_items != 0) {
-								$order->update_meta_data('hubwoo_order_line_item_created', 'yes');
+								Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_order_line_item_created', 'yes');
 							} else if (empty($num_of_assoc_line_items) || $num_of_assoc_line_items == 0) {
-								$order->delete_meta_data('hubwoo_order_line_item_created');
+								Hubwoo::hubwoo_hpos_delete_meta_data($order, 'hubwoo_order_line_item_created');
 							}
-							$order->save();
 						}
 					}
-				}
 
-				$hubwoo_ecomm_deal_id = $order->get_meta('hubwoo_ecomm_deal_id', true);
+					$hubwoo_ecomm_deal_id = Hubwoo::hubwoo_hpos_get_meta_data($order, 'hubwoo_ecomm_deal_id', true);
 
-				if (empty($hubwoo_ecomm_deal_id)) {
-					$response = HubWooConnectionMananager::get_instance()->create_object_record('deals', $deal_updates);
-					if (201 == $response['status_code']) {
-						$response_body = json_decode($response['body']);
-						$hubwoo_ecomm_deal_id = $response_body->id;
-						$order->update_meta_data('hubwoo_ecomm_deal_id', $hubwoo_ecomm_deal_id);
-						$order->save();
+					if (empty($hubwoo_ecomm_deal_id)) {
+						$response = HubWooConnectionMananager::get_instance()->create_object_record('deals', $deal_properties);
+						if (201 == $response['status_code']) {
+							$response_body = json_decode($response['body']);
+							$hubwoo_ecomm_deal_id = $response_body->id;
+							Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_ecomm_deal_id', $hubwoo_ecomm_deal_id);
+						}else{
+							Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_invalid_deal', 'yes');
+							Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_ecomm_deal_created', 'yes');
+						}
+					} else {
+						$response = HubWooConnectionMananager::get_instance()->update_object_record('deals', $hubwoo_ecomm_deal_id, $deal_properties);
+						if (200 != $response['status_code']) {
+							Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_invalid_deal', 'yes');
+							Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_ecomm_deal_created', 'yes');
+						}
 					}
-				} else {
-					$response = HubWooConnectionMananager::get_instance()->update_object_record('deals', $hubwoo_ecomm_deal_id, $deal_updates);
-				}
 
-				if (!empty($hubwoo_ecomm_deal_id) && !empty($contact_vid)) {
-					HubWooConnectionMananager::get_instance()->associate_object('deal', $hubwoo_ecomm_deal_id, 'contact', $contact_vid, 3);
-				}
-
-				do_action('hubwoo_ecomm_deal_created', $order_id);
-
-				if ('yes' == $assc_deal_cmpy) {
-					if (!empty($contact) && empty($invalid_contact) && !empty($hubwoo_ecomm_deal_id)) {
-						Hubwoo::hubwoo_associate_deal_company($contact, $hubwoo_ecomm_deal_id);
+					if (!empty($hubwoo_ecomm_deal_id) && !empty($contact_vid)) {
+						HubWooConnectionMananager::get_instance()->associate_object('deal', $hubwoo_ecomm_deal_id, 'contact', $contact_vid, 3);
 					}
-				}
 
-				$order->update_meta_data('hubwoo_ecomm_deal_upsert', 'no');
-				$order->delete_meta_data('hubwoo_ecomm_deal_upsert');
-				$order->save();
+					do_action('hubwoo_ecomm_deal_created', $order_id);
 
-				if (!empty($hubwoo_ecomm_deal_id)) {
-					$response = self::hubwoo_ecomm_sync_line_items($order_id);
-				} else {
-					$response = array('status_code' => 206);
+					if ('yes' == $assc_deal_cmpy) {
+						if (!empty($contact) && empty($invalid_contact) && !empty($hubwoo_ecomm_deal_id)) {
+							Hubwoo::hubwoo_associate_deal_company($contact, $hubwoo_ecomm_deal_id, $contact_vid);
+						}
+					}
+
+					Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_ecomm_deal_upsert', 'no');
+					Hubwoo::hubwoo_hpos_delete_meta_data($order, 'hubwoo_ecomm_deal_upsert');
+
+					if (!empty($hubwoo_ecomm_deal_id)) {
+						$response = self::hubwoo_ecomm_sync_line_items($order_id);
+					}
 				}
 
 				return $response;
@@ -429,12 +290,13 @@ class HubwooObjectProperties
 			$order             = wc_get_order($order_id);
 			$line_updates      = array();
 			$order_items       = $order->get_items();
-			$object_ids        = array();
+			$hs_product_ids    = array();
+			$invalid_hs_product_ids = array();
 			$response          = array('status_code' => 206);
 
-			$deal_id = $order->get_meta('hubwoo_ecomm_deal_id', true);
+			$deal_id = Hubwoo::hubwoo_hpos_get_meta_data($order, 'hubwoo_ecomm_deal_id', true);
 
-			if ('yes' != $order->get_meta('hubwoo_order_line_item_created', 'no')) {
+			if ('yes' != Hubwoo::hubwoo_hpos_get_meta_data($order, 'hubwoo_order_line_item_created', 'no')) {
 				if (is_array($order_items) && count($order_items)) {
 					foreach ($order_items as $item_key => $single_item) :
 						$product_id = $single_item->get_variation_id();
@@ -474,6 +336,7 @@ class HubwooObjectProperties
 						);
 
 						if ('yes' != get_option('hubwoo_product_scope_needed', 'no')) {
+							$hs_product_ids[] = array('id' => $hs_product_id);
 							$properties['hs_product_id'] = $hs_product_id;
 						}
 
@@ -488,8 +351,22 @@ class HubwooObjectProperties
 
 			$line_updates = apply_filters('hubwoo_custom_line_item', $line_updates, $order_id);
 			if (count($line_updates)) {
+				if (count($hs_product_ids)) {
+					$hs_product_ids = array('inputs' => $hs_product_ids);
+					$response = HubWooConnectionMananager::get_instance()->get_batch_object_record('products', $hs_product_ids);
+					if ($response['status_code'] == 207) {
+						$response_body = json_decode($response['body'], true);
+						$invalid_hs_product_ids = $response_body['errors'][0]['context']['ids'] ?? array();
+					}
+				}
+
 				$modified_line_updates = array();
 				foreach ($line_updates as $line_update) {
+					if (isset($line_update['properties']['hs_product_id']) && count($invalid_hs_product_ids)) {
+						if (in_array($line_update['properties']['hs_product_id'], $invalid_hs_product_ids)) {
+							unset($line_update['properties']['hs_product_id']);
+						}
+					}
 					$line_update['associations'] = array(
 						array(
 							'types' => array(
@@ -524,16 +401,14 @@ class HubwooObjectProperties
 			}
 
 			if (201 == $response['status_code'] || 206 == $response['status_code'] || empty($object_ids)) {
-				$order->update_meta_data('hubwoo_ecomm_deal_created', 'yes');
-				$order->save();
+				Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_ecomm_deal_created', 'yes');
 				if (1 == get_option('hubwoo_deals_sync_running', 0)) {
 					$current_count = get_option('hubwoo_deals_current_sync_count', 0);
 					update_option('hubwoo_deals_current_sync_count', ++$current_count);
 				}
 			}
 			if (201 == $response['status_code']) {
-				$order->update_meta_data('hubwoo_order_line_item_created', 'yes');
-				$order->save();
+				Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_order_line_item_created', 'yes');
 			}
 
 			return $response;
@@ -548,25 +423,159 @@ class HubwooObjectProperties
 	 * @param int $order_id - order id.
 	 * @return  array sync response from HubSpot.
 	 */
-	public function hubwoo_ecomm_deals_sync($order_id)
+	public function hubwoo_ecomm_deals_sync($order_id, $sync_type = '')
 	{
 
 		if (! empty($order_id)) {
 			$hubwoo_ecomm_order = wc_get_order($order_id);
 			if ($hubwoo_ecomm_order instanceof WC_Order) {
+
+				// Get selected user roles for syncing
+				$real_user_roles = get_option('hubwoo-selected-user-roles', array());
+				if (empty($real_user_roles)) {
+					$real_user_roles = array_keys(Hubwoo_Admin::get_all_user_roles());
+					update_option('hubwoo-selected-user-roles', $real_user_roles);
+				}
+				$historical_user_roles = get_option('hubwoo_customers_role_settings', array());
+				if (empty($historical_user_roles)) {
+					$historical_user_roles = array_keys(Hubwoo_Admin::get_all_user_roles());
+					update_option('hubwoo_customers_role_settings', $historical_user_roles);
+				}
+
 				$customer_id = $hubwoo_ecomm_order->get_customer_id();
 
 				if (! empty($customer_id)) {
 					$source = 'user';
-					self::hubwoo_ecomm_contacts_with_id($customer_id);
+					$customer = get_userdata($customer_id);
+					if ($customer) {
+						$customer_user_roles = $customer->roles;
+					}
+					if (! empty($customer_user_roles)) {
+						$roles_to_check = $sync_type == 'real' ? $real_user_roles : $historical_user_roles;
+						if (!empty(array_intersect($customer_user_roles, $roles_to_check))) {
+							self::hubwoo_ecomm_contacts_with_id($customer_id);
+						}
+					}
 				} else {
 					$source = 'guest';
-					self::hubwoo_ecomm_guest_user($order_id);
+					$roles_to_check = $sync_type == 'real' ? $real_user_roles : $historical_user_roles;
+					if (in_array('guest_user', $roles_to_check)) {
+						self::hubwoo_ecomm_guest_user($order_id);
+					}
 				}
 
+				// Check renewal subscription order
+				if (class_exists('WC_Subscriptions')) {
+					self::hubwoo_check_wcs_renewal_order($order_id);
+				}
+				Hubwoo::hubwoo_hpos_delete_meta_data($hubwoo_ecomm_order, 'hubwoo_invalid_deal');
 				$response = self::hubwoo_ecomm_sync_deal($order_id, $source, $customer_id);
 				update_option('hubwoo_last_sync_date', time());
 				return $response;
+			}
+		}
+	}
+
+	public static function hubwoo_create_update_single_contact($contact_properties, $user_email, $user_type, $user_id = '', $order = NULL)
+	{
+		if (count($contact_properties)) {
+			if (!(($user_type == 'reg' && !empty($user_id)) || ($user_type == 'guest' && ($order instanceof WC_Order)))) {
+				return;
+			}
+
+			$contact_properties = array('properties' => $contact_properties);
+
+			$flag = true;
+			if (Hubwoo::is_access_token_expired()) {
+				$hapikey = HUBWOO_CLIENT_ID;
+				$hseckey = HUBWOO_SECRET_ID;
+				$status  = HubWooConnectionMananager::get_instance()->hubwoo_refresh_token($hapikey, $hseckey);
+				if (! $status) {
+					$flag = false;
+				}
+			}
+
+			if ($flag) {
+				$filtergps = array(
+					'filterGroups' => array(
+						array(
+							'filters' => array(
+								array(
+									'value' => $user_email,
+									'propertyName' => 'email',
+									'operator' => 'EQ',
+								),
+							),
+						),
+					),
+				);
+
+				$response = HubWooConnectionMananager::get_instance()->search_object_record('contacts', $filtergps);
+				if (200 == $response['status_code']) {
+					$responce_body = json_decode($response['body']);
+					$result = $responce_body->results;
+					if (! empty($result)) {
+						foreach ($result as $key => $value) {
+							if ($user_type == 'reg') {
+								update_user_meta($user_id, 'hubwoo_user_vid', $value->id);
+							} else if ($user_type == 'guest') {
+								Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_user_vid', $value->id);
+							}
+						}
+					} else {
+						if ($user_type == 'reg') {
+							delete_user_meta($user_id, 'hubwoo_user_vid');
+						} else if ($user_type == 'guest') {
+							$order->delete_meta_data('hubwoo_user_vid');
+							$order->save();
+						}
+					}
+
+					if ($user_type == 'reg') {
+						$hubwoo_user_vid = get_user_meta($user_id, 'hubwoo_user_vid', true);
+					} else if ($user_type == 'guest') {
+						$hubwoo_user_vid = Hubwoo::hubwoo_hpos_get_meta_data($order, 'hubwoo_user_vid', true);
+					}
+					if (! empty($hubwoo_user_vid)) {
+						$response = HubWooConnectionMananager::get_instance()->update_object_record('contacts', $hubwoo_user_vid, $contact_properties);
+						if ($user_type == 'reg') {
+							update_user_meta($user_id, 'hubwoo_pro_user_data_change', 'synced');
+						} else if ($user_type == 'guest') {
+							Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_pro_guest_order', 'synced');
+						}
+					} else {
+						$response = HubWooConnectionMananager::get_instance()->create_object_record('contacts', $contact_properties);
+						if (201 == $response['status_code']) {
+							$contact_vid = json_decode($response['body']);
+							if ($user_type == 'reg') {
+								update_user_meta($user_id, 'hubwoo_user_vid', $contact_vid->id);
+								update_user_meta($user_id, 'hubwoo_pro_user_data_change', 'synced');
+							} else if ($user_type == 'guest') {
+								Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_user_vid', $contact_vid->id);
+								Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_pro_guest_order', 'synced');
+							}
+						} else if (409 == $response['status_code']) {
+							$contact_vid = json_decode($response['body']);
+							$hs_id = explode('ID: ', $contact_vid->message);
+							$response = HubWooConnectionMananager::get_instance()->update_object_record('contacts', $hs_id[1], $contact_properties);
+							if ($user_type == 'reg') {
+								update_user_meta($user_id, 'hubwoo_user_vid', $hs_id[1]);
+								update_user_meta($user_id, 'hubwoo_pro_user_data_change', 'synced');
+							} else if ($user_type == 'guest') {
+								Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_user_vid', $hs_id[1]);
+								Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_pro_guest_order', 'synced');
+							}
+						} else if (400 == $response['status_code']) {
+							if ($user_type == 'reg') {
+								update_user_meta($user_id, 'hubwoo_invalid_contact', 'yes');
+								update_user_meta($user_id, 'hubwoo_pro_user_data_change', 'synced');
+							} else if ($user_type == 'guest') {
+								Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_invalid_contact', 'yes');
+								Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_pro_guest_order', 'synced');
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -608,5 +617,34 @@ class HubwooObjectProperties
 		$time_zone = new DateTimeZone($wp_time_zone);
 		$date->setTimezone($time_zone);
 		return $date->getTimestamp() * 1000; // in miliseconds.
+	}
+
+	/**
+	 * Remove meta key on renewal subscription order to avoid deal duplication.
+	 *
+	 * @param int $order_id - order id.
+	 * @since 1.6.5
+	 */
+	private function hubwoo_check_wcs_renewal_order($renewal_order_id)
+	{
+		$renewal_order    = wc_get_order($renewal_order_id);
+		$hubwoo_ecomm_renewal_deal_id = $renewal_order->get_meta('hubwoo_ecomm_deal_id', true);
+
+		if ($hubwoo_ecomm_renewal_deal_id && function_exists('wcs_get_subscriptions_for_order')) {
+			$subscriptions = wcs_get_subscriptions_for_order(
+				$renewal_order,
+				array('order_type' => 'renewal')
+			);
+
+			foreach ($subscriptions as $subscription) {
+				$parent_order_id = $subscription->get_parent_id();
+				$parent_order = wc_get_order($parent_order_id);
+				$hubwoo_ecomm_parent_deal_id = $parent_order->get_meta('hubwoo_ecomm_deal_id', true);
+				if (!empty($hubwoo_ecomm_parent_deal_id) && $hubwoo_ecomm_parent_deal_id == $hubwoo_ecomm_renewal_deal_id) {
+					$renewal_order->delete_meta_data('hubwoo_ecomm_deal_id');
+					$renewal_order->save();
+				}
+			}
+		}
 	}
 }
