@@ -58,6 +58,8 @@ class Hubwoo_Public {
 	public function hubwoo_woocommerce_save_account_details( $user_id ) {
 
 		update_user_meta( $user_id, 'hubwoo_pro_user_data_change', 'yes' );
+
+		HubWoo_Schedulers::get_instance()->hubwoo_trigger_heartbeat();
 	}
 
 	/**
@@ -261,6 +263,8 @@ class Hubwoo_Public {
 				}
 			}
 		}
+
+		HubWoo_Schedulers::get_instance()->hubwoo_trigger_heartbeat();
 	}
 
 	/**

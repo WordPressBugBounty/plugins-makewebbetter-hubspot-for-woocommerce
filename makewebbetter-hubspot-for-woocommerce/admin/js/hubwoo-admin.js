@@ -239,8 +239,8 @@
 					case 'move-to-list':
 						redirectUrl += '=list-setup';
 					break;
-					case 'move-to-sync':
-						redirectUrl += '=sync';
+					case 'move-to-user-roles':
+						redirectUrl += '=user-roles';
 					break;
 					case 'move-to-pipeline':
 						redirectUrl += '=pipeline-setup';
@@ -1397,7 +1397,7 @@
 				},
 			);
 
-			// Abandoned Cart
+			// Abandoned Cart Template
 			jQuery( '.hubwoo-abncart-setup-form' ).on(
 				'change',
 				debounce(
@@ -1408,6 +1408,20 @@
 							{ key: 'hubwoo_abncart_guest_cart', status: 'no' },
 							{ key: 'hubwoo_abncart_delete_old_data', status: 'no' },
 						];
+						const preparedFormData = prepareFormData( data, enableKeys, true );
+						saveUpdates( preparedFormData );
+					},
+					700,
+				),
+			);
+
+			// Logs Template
+			jQuery( '.hubwoo-logs-control-form' ).on(
+				'change',
+				debounce(
+					function() {
+						const data             = jQuery( '.hubwoo-logs-control-form' ).serializeArray();
+						const enableKeys       = [];
 						const preparedFormData = prepareFormData( data, enableKeys, true );
 						saveUpdates( preparedFormData );
 					},
@@ -1767,7 +1781,7 @@
 						const deal_property = await jQuery.ajax({ type : 'POST', url  : ajaxUrl, data : { action : 'hubwoo_deals_create_property', hubwooSecurity, }, dataType : 'json', });
 						
 					allCreatedProperties = allCreatedProperties.map((prop) => { return prop.replace(/["']/g, "").trim()})
-					await saveUpdates( { 'hubwoo-groups-created': allCreatedGroups, 'hubwoo-properties-created': allCreatedProperties, 'hubwoo_fields_setup_completed': 1, 'hubwoo_pro_setup_completed': 1, 'hubwoo_plugin_version': '1.6.5' } );
+					await saveUpdates( { 'hubwoo-groups-created': allCreatedGroups, 'hubwoo-properties-created': allCreatedProperties, 'hubwoo_fields_setup_completed': 1, 'hubwoo_pro_setup_completed': 1, 'hubwoo_plugin_version': '1.6.6' } );
 					await runEcommSetup();
 					updateProgressBar( 100 );
 					transferScreen( 'move-to-list' );
@@ -2159,7 +2173,7 @@
 				'#hubwoo-save-pipeline',
 				async function( event ) {
 					await saveUpdates( { 'hubwoo_pipeline_setup_completed': 1 } );
-					transferScreen( 'move-to-sync' );
+					transferScreen( 'move-to-user-roles' );
 				},
 			);
 

@@ -151,19 +151,19 @@ class HubWooCustomer {
 			);
 		}
 
-		$state = get_user_meta( $this->_contact_id, 'billing_state', true );
-		if ( ! empty( $state ) ) {
-			$properties[] = array(
-				'property' => 'state',
-				'value'    => $state,
-			);
-		}
-
 		$country = get_user_meta( $this->_contact_id, 'billing_country', true );
 		if ( ! empty( $country ) ) {
 			$properties[] = array(
 				'property' => 'country',
 				'value'    => Hubwoo::map_country_by_abbr( $country ),
+			);
+		}
+
+		$state = get_user_meta( $this->_contact_id, 'billing_state', true );
+		if (! empty($state) && ! empty($country)) {
+			$guest_user_properties[] = array(
+				'property' => 'state',
+				'value'    => Hubwoo::map_state_by_abbr($state, $country)
 			);
 		}
 

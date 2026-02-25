@@ -176,11 +176,11 @@ class HubwooEcommPropertyCallbacks {
 				break;
 
 			case 'state':
-				$value = get_user_meta( $this->_object_id, 'billing_state', true );
+				$value = Hubwoo::map_state_by_abbr(get_user_meta( $this->_object_id, 'billing_state', true ), get_user_meta( $this->_object_id, 'billing_country', true ));
 				break;
 
 			case 'country':
-				$value = get_user_meta( $this->_object_id, 'billing_country', true );
+				$value = Hubwoo::map_country_by_abbr(get_user_meta( $this->_object_id, 'billing_country', true ));
 				break;
 
 			case 'address':

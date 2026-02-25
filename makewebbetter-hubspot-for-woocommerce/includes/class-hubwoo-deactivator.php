@@ -37,19 +37,23 @@ if ( ! class_exists( 'Hubwoo_Deactivator' ) ) {
 		 * @since    1.0.0
 		 */
 		public static function deactivate() {
-
+			as_unschedule_action( 'hubwoo_real_time_sync' );
+			as_unschedule_all_actions( 'hubwoo_real_time_task' );
 			as_unschedule_action( 'hubwoo_cron_schedule' );
-			as_unschedule_action( 'hubwoo_contacts_batch_sync' );
+			as_unschedule_action( 'hubwoo_update_contacts_vid' );
+			as_unschedule_all_actions( 'hubwoo_contacts_batch_sync' );
+			as_unschedule_action( 'hubwoo_contacts_sync_background' );
 			as_unschedule_action( 'hubwoo_deals_sync_check' );
-			as_unschedule_action( 'hubwoo_products_sync_check' );
+			as_unschedule_action( 'hubwoo_ecomm_deal_update' );
+			as_unschedule_all_actions( 'hubwoo_ecomm_deal_upsert' );
+			as_unschedule_action( 'hubwoo_deals_sync_background' );
 			as_unschedule_action( 'hubwoo_deal_update_schedule' );
+			as_unschedule_action( 'hubwoo_products_sync_check' );
 			as_unschedule_action( 'hubwoo_products_status_background' );
 			as_unschedule_action( 'hubwoo_products_sync_background' );
-			as_unschedule_action( 'hubwoo_contacts_sync_background' );
 			as_unschedule_action( 'hubwoo_check_logs' );
-			as_unschedule_action( 'hubwoo_ecomm_deal_upsert' );
-			as_unschedule_action( 'hubwoo_ecomm_deal_update' );
-			as_unschedule_action( 'huwoo_abncart_clear_old_cart' );
+			as_unschedule_action( 'hubwoo_check_action_schedulers_logs' );
+			as_unschedule_action( 'hubwoo_abncart_clear_old_cart' );
 		}
 	}
 }

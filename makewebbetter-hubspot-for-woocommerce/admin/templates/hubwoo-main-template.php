@@ -121,7 +121,7 @@ if ( 1 == get_option( 'hubwoo_connection_setup_established', 0 ) ) {
 	<?php
 } else {
 
-	$display_keys = array_fill_keys( array( 'connection-setup', 'grp-pr-setup', 'list-setup', 'pipeline-setup', 'sync' ), '' );
+	$display_keys = array_fill_keys( array( 'connection-setup', 'grp-pr-setup', 'list-setup', 'pipeline-setup', 'user-roles' ), '' );
 
 	$display_keys['default_tab']      = 'connection-setup';
 	$display_keys['connection-setup'] = 'active';
@@ -145,8 +145,8 @@ if ( 1 == get_option( 'hubwoo_connection_setup_established', 0 ) ) {
 
 		if ( 1 == get_option( 'hubwoo_pipeline_setup_completed', 0 ) ) {
 			$display_keys['pipeline-setup']  = 'completed';
-			$display_keys['sync']            = 'completed';
-			$display_keys['default_tab']     = 'sync';
+			$display_keys['user-roles']       = 'completed';
+			$display_keys['default_tab']     = 'user-roles';
 		}
 	}
 
@@ -190,10 +190,10 @@ if ( 1 == get_option( 'hubwoo_connection_setup_established', 0 ) ) {
 						<?php esc_html_e( 'Deal Stage', 'makewebbetter-hubspot-for-woocommerce' ); ?>
 					</a>
 				</li>
-				<li class="mwb-heb__nav-list-item <?php echo esc_attr( $display_keys['sync'] ); ?>">
-					<a href="admin.php?page=hubwoo&hubwoo_tab=hubwoo-overview&hubwoo_key=sync">
+				<li class="mwb-heb__nav-list-item <?php echo esc_attr( $display_keys['user-roles'] ); ?>">
+					<a href="admin.php?page=hubwoo&hubwoo_tab=hubwoo-overview&hubwoo_key=user-roles">
 						<span class="mwb-heb__nav-count"><?php esc_html_e( '5', 'makewebbetter-hubspot-for-woocommerce' ); ?></span> 
-						<?php esc_html_e( 'Sync', 'makewebbetter-hubspot-for-woocommerce' ); ?>
+						<?php esc_html_e( 'User Roles', 'makewebbetter-hubspot-for-woocommerce' ); ?>
 					</a>
 				</li>
 			</ul>

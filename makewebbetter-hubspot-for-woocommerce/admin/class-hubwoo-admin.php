@@ -511,38 +511,6 @@ class Hubwoo_Admin
 	}
 
 	/**
-	 * Check status of schedulers and rerun them too.
-	 *
-	 * @since 1.6.2
-	 */
-	public function hubwoo_check_scheduler_status()
-	{
-		if (! as_next_scheduled_action('hubwoo_cron_schedule')) {
-			as_schedule_recurring_action(time(), 300, 'hubwoo_cron_schedule');
-		}
-
-		if (! as_next_scheduled_action('hubwoo_deals_sync_check')) {
-			as_schedule_recurring_action(time(), 300, 'hubwoo_deals_sync_check');
-		}
-
-		if (! as_next_scheduled_action('hubwoo_ecomm_deal_update')) {
-			as_schedule_recurring_action(time(), 300, 'hubwoo_ecomm_deal_update');
-		}
-
-		if (! as_next_scheduled_action('hubwoo_products_sync_check')) {
-			as_schedule_recurring_action(time(), 300, 'hubwoo_products_sync_check');
-		}
-
-		if (! as_next_scheduled_action('hubwoo_check_logs')) {
-			as_schedule_recurring_action(time(), 86400, 'hubwoo_check_logs');
-		}
-
-		if (! as_next_scheduled_action('huwoo_abncart_clear_old_cart')) {
-			as_schedule_recurring_action(time(), 86400, 'huwoo_abncart_clear_old_cart');
-		}
-	}
-
-	/**
 	 * Getting next execution for realtime cron, priorities task for old users.
 	 *
 	 * @since 1.2.9
@@ -890,32 +858,28 @@ class Hubwoo_Admin
 			$user_id = (int) $order->get_customer_id();
 
 			if (0 !== $user_id && 0 < $user_id) {
-
 				update_user_meta($user_id, 'hubwoo_pro_user_data_change', 'yes');
 			} else {
-
-				if ('yes' === get_option('hubwoo_pro_guest_sync_enable', 'yes')) {
-					Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_pro_guest_order', 'yes');
-				}
+				Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_pro_guest_order', 'yes');
 			}
 
-			// $upsert_meta = Hubwoo::hubwoo_hpos_get_meta_data($order, 'hubwoo_ecomm_deal_upsert', 'no');
+			$upsert_meta = Hubwoo::hubwoo_hpos_get_meta_data($order, 'hubwoo_ecomm_deal_upsert', 'no');
+			if ($upsert_meta == 'yes') {
+				return;
+			}
 
-			// if ($upsert_meta == 'yes') {
-			// 	return;
-			// }
+			$post_type = get_post_type($order_id);
+			if ('shop_subscription' == $post_type) {
+				return;
+			}
 
-			// $post_type = get_post_type($order_id);
+			if ('yes' == get_option('woocommerce_custom_orders_table_data_sync_enabled', 'no') && 'yes' == get_option('woocommerce_custom_orders_table_enabled', 'no')) {
+				return;
+			}
 
-			// if ('shop_subscription' == $post_type) {
-			// 	return;
-			// }
+			Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_ecomm_deal_upsert', 'yes');
 
-			// if ('yes' == get_option('woocommerce_custom_orders_table_data_sync_enabled', 'no') && 'yes' == get_option('woocommerce_custom_orders_table_enabled', 'no')) {
-			// 	return;
-			// }
-
-			// Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_ecomm_deal_upsert', 'yes');
+			HubWoo_Schedulers::get_instance()->hubwoo_trigger_heartbeat();
 		}
 	}
 
@@ -929,7 +893,6 @@ class Hubwoo_Admin
 	{
 
 		if (! empty($user_id)) {
-
 			update_user_meta($user_id, 'hubwoo_pro_user_data_change', 'yes');
 		}
 	}
@@ -1002,8 +965,8 @@ class Hubwoo_Admin
 			$hubwoo_unique_users = array_slice($hubwoo_unique_users, -10);
 			$batch_id = bin2hex(random_bytes(16));
 			update_option('hubwoo_batch_users_to_sync_' . $batch_id, $hubwoo_unique_users);
-			if (! as_next_scheduled_action('hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'reg'))) {
-				as_schedule_single_action(time() + 5, 'hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'reg',  'batch_id' => $batch_id));
+			if (! as_has_scheduled_action('hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'reg'))) {
+				as_enqueue_async_action('hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'reg',  'batch_id' => $batch_id));
 			}
 		}
 
@@ -1072,13 +1035,13 @@ class Hubwoo_Admin
 		if (! empty($hubwoo_orders)) {
 			$batch_id = bin2hex(random_bytes(16));
 			update_option('hubwoo_batch_users_to_sync_' . $batch_id, $hubwoo_orders);
-			if (! as_next_scheduled_action('hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'guest'))) {
-				as_schedule_single_action(time() + 10, 'hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'guest',  'batch_id' => $batch_id));
+			if (! as_has_scheduled_action('hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'guest'))) {
+				as_enqueue_async_action('hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'guest',  'batch_id' => $batch_id));
 			}
 		}
 
-		if (! as_next_scheduled_action('hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'guest_abncart'))) {
-			as_schedule_single_action(time() + 15, 'hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'guest_abncart'));
+		if (! as_has_scheduled_action('hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'guest_abncart'))) {
+			as_enqueue_async_action('hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'guest_abncart'));
 		}
 	}
 
@@ -1467,7 +1430,7 @@ class Hubwoo_Admin
 			'title'             => esc_html__('Delete Data Timer( Days )', 'makewebbetter-hubspot-for-woocommerce'),
 			'id'                => 'hubwoo_abncart_delete_after',
 			'type'              => 'number',
-			'desc'              => esc_html__('Delete Abandoned cart data form woocommerce store.', 'makewebbetter-hubspot-for-woocommerce'),
+			'desc'              => esc_html__('Specify how many days abandoned cart data should be stored. Data older than this period will be automatically deleted (min. 7days).', 'makewebbetter-hubspot-for-woocommerce'),
 			'desc_tip'          => true,
 			'custom_attributes' => array('min' => '7'),
 			'default'           => '30',
@@ -1963,7 +1926,7 @@ class Hubwoo_Admin
 	 *
 	 * @since    1.0.0
 	 */
-	public function huwoo_abncart_clear_old_cart()
+	public function hubwoo_abncart_clear_old_cart()
 	{
 
 		if (get_option('hubwoo_abncart_delete_old_data', 'yes') == 'yes') {
@@ -2184,6 +2147,17 @@ class Hubwoo_Admin
 			'default'  => 'wc-completed',
 		);
 
+		$basic_settings[] = array(
+			'title'             => esc_html__('Action Scheduler Log Retention (Days)', 'makewebbetter-hubspot-for-woocommerce'),
+			'id'                => 'hubwoo_woo_action_schedulers_logs_delete_after',
+			'class'    			=> 'hubwoo-general-settings-fields',
+			'type'              => 'number',
+			'desc'              => esc_html__('Define how many days completed Action Scheduler logs should be retained. Logs older than this period will be automatically deleted (min. 10 days).', 'makewebbetter-hubspot-for-woocommerce'),
+			'desc_tip'          => true,
+			'custom_attributes' => array('min' => '10'),
+			'default'           => '30',
+		);
+
 		$basic_settings = apply_filters('hubwoo_general_settings_options', $basic_settings);
 
 		$basic_settings[] = array(
@@ -2272,8 +2246,9 @@ class Hubwoo_Admin
 			return;
 		}
 
+		$is_hpos_enabled = Hubwoo::hubwoo_check_hpos_active();
 		//hpos changes
-		if (Hubwoo::hubwoo_check_hpos_active()) {
+		if ($is_hpos_enabled) {
 			// HPOS is enabled.
 			$args = array(
 				'posts_per_page'      => -1,
@@ -2281,6 +2256,8 @@ class Hubwoo_Admin
 				'orderby'             => 'date',
 				'order'               => 'desc',
 				'return'              => 'ids',
+				'meta_key'     		  => 'hubwoo_ecomm_deal_created',
+				'meta_compare' 		  => 'EXISTS',
 				'no_found_rows'       => true,
 				'ignore_sticky_posts' => true,
 				'post_parent'         => 0,
@@ -2296,38 +2273,34 @@ class Hubwoo_Admin
 				'fields'              => 'ids',
 				'no_found_rows'       => true,
 				'ignore_sticky_posts' => true,
+				'meta_query'          => array(
+					array(
+						'key'     => 'hubwoo_ecomm_deal_created',
+						'compare' => 'EXISTS',
+					),
+				),
 			);
 		}
 
-		$hubwoo_last_time_order_sync = get_option('hubwoo_last_time_order_sync', gmdate('Y-m-d H:i:s'));
+		$hubwoo_last_time_order_sync = get_option('hubwoo_last_time_order_sync', current_time('mysql', true));
 		if (! empty($hubwoo_last_time_order_sync)) {
-			$buffer_seconds = 180;
-			$after_ts       = strtotime($hubwoo_last_time_order_sync) - $buffer_seconds;
-			$after_date     = gmdate('Y-m-d H:i:s', $after_ts);
+			$date = new DateTime($hubwoo_last_time_order_sync, new DateTimeZone('UTC'));
+			$date->modify('-3 minutes');
+			$after_date = $date->format('Y-m-d H:i:s');
 
-			if (Hubwoo::hubwoo_check_hpos_active()) {
-				$args['date_query'] = array(
-					array(
-						'column'    => 'date_updated_gmt',
-						'after'     => $after_date,
-						'inclusive' => true,
-					),
-				);
-			} else {
-				$args['date_query'] = array(
-					array(
-						'column'    => 'post_modified_gmt',
-						'after'     => $after_date,
-						'inclusive' => true,
-					),
-				);
-			}
+			$args['date_query'] = array(
+				array(
+					'column'    => $is_hpos_enabled ? 'date_updated_gmt' : 'post_modified_gmt',
+					'after'     => $after_date,
+					'inclusive' => true,
+				),
+			);
 		}
 
 		$args = apply_filters('hubwoo_deals_update_filter', $args);
 
 		//hpos changes
-		if (Hubwoo::hubwoo_check_hpos_active()) {
+		if ($is_hpos_enabled) {
 			// HPOS is enabled.
 			$query = new WC_Order_Query($args);
 			$orders_needs_syncing = $query->get_orders();
@@ -2338,14 +2311,81 @@ class Hubwoo_Admin
 		}
 
 		if (! empty($orders_needs_syncing)) {
+			$orders_needs_syncing = self::hubwoo_check_orders_upsert_key($orders_needs_syncing);
 			foreach ($orders_needs_syncing as $key => $order_id) {
-				if (! as_next_scheduled_action('hubwoo_ecomm_deal_upsert', array('order_id' => $order_id, 'sync_type' => 'real'))) {
-					as_schedule_single_action(time() + ($key * 5), 'hubwoo_ecomm_deal_upsert', array('order_id' => $order_id, 'sync_type' => 'real'));
+				if (HubwooObjectProperties::get_instance()->hubwoo_needs_to_sync_order($order_id)) {
+					if (! as_has_scheduled_action('hubwoo_ecomm_deal_upsert', array('order_id' => $order_id, 'sync_type' => 'real'))) {
+						as_enqueue_async_action('hubwoo_ecomm_deal_upsert', array('order_id' => $order_id, 'sync_type' => 'real'));
+					}
 				}
 			}
 		}
-		
-		update_option('hubwoo_last_time_order_sync', gmdate('Y-m-d H:i:s'));
+
+		update_option('hubwoo_last_time_order_sync', current_time('mysql', true));
+	}
+
+	public function hubwoo_check_orders_upsert_key($orders)
+	{
+		$is_hpos_enabled = Hubwoo::hubwoo_check_hpos_active();
+		//hpos changes
+		if ($is_hpos_enabled) {
+			// HPOS is enabled.
+			$args = array(
+				'posts_per_page'      => 5,
+				'post_status'         => array_keys(wc_get_order_statuses()),
+				'orderby'             => 'date',
+				'order'               => 'ASC',
+				'return'              => 'ids',
+				'no_found_rows'       => true,
+				'ignore_sticky_posts' => true,
+				'post_parent'         => 0,
+				'meta_query'          => array(
+					array(
+						'key'     => 'hubwoo_ecomm_deal_upsert',
+						'compare' => '=',
+						'value'   => 'yes',
+					),
+				),
+			);
+		} else {
+			// CPT-based orders are in use.
+			$args = array(
+				'post_type'           => 'shop_order',
+				'posts_per_page'      => 5,
+				'post_status'         => array_keys(wc_get_order_statuses()),
+				'orderby'             => 'date',
+				'order'               => 'ASC',
+				'fields'              => 'ids',
+				'no_found_rows'       => true,
+				'ignore_sticky_posts' => true,
+				'meta_query'          => array(
+					array(
+						'key'     => 'hubwoo_ecomm_deal_upsert',
+						'compare' => '=',
+						'value'   => 'yes',
+					),
+				),
+			);
+		}
+
+		$args = apply_filters('hubwoo_deals_update_filter', $args);
+
+		//hpos changes
+		if ($is_hpos_enabled) {
+			// HPOS is enabled.
+			$query = new WC_Order_Query($args);
+			$orders_with_upsert = $query->get_orders();
+		} else {
+			// CPT-based orders are in use.
+			$query = new WP_Query();
+			$orders_with_upsert = $query->query($args);
+		}
+
+		if (! empty($orders_with_upsert)) {
+			$orders = array_unique(array_merge($orders, $orders_with_upsert));
+		}
+
+		return $orders;
 	}
 
 	/**
@@ -2355,12 +2395,11 @@ class Hubwoo_Admin
 	 */
 	public function hubwoo_deals_sync_background()
 	{
-		return;
 		$orders_needs_syncing = self::hubwoo_orders_count_for_deal(5, false);
 		if (is_array($orders_needs_syncing) && count($orders_needs_syncing)) {
 			foreach ($orders_needs_syncing as $key => $order_id) {
-				if (! as_next_scheduled_action('hubwoo_ecomm_deal_upsert', array('order_id' => $order_id, 'sync_type' => 'historical'))) {
-					as_schedule_single_action(time() + ($key * 5), 'hubwoo_ecomm_deal_upsert', array('order_id' => $order_id, 'sync_type' => 'historical'));
+				if (! as_has_scheduled_action('hubwoo_ecomm_deal_upsert', array('order_id' => $order_id, 'sync_type' => 'historical'))) {
+					as_enqueue_async_action('hubwoo_ecomm_deal_upsert', array('order_id' => $order_id, 'sync_type' => 'historical'));
 				}
 			}
 		} else {
@@ -2652,8 +2691,9 @@ class Hubwoo_Admin
 		$sync_data['upto_date']             = get_option('hubwoo_ecomm_order_ocs_upto_date', gmdate('d-m-Y'));
 		$sync_data['selected_order_status'] = get_option('hubwoo_ecomm_order_ocs_status', array_keys(wc_get_order_statuses()));
 
+		$is_hpos_enabled = Hubwoo::hubwoo_check_hpos_active();
 		//hpos changes
-		if (Hubwoo::hubwoo_check_hpos_active()) {
+		if ($is_hpos_enabled) {
 			// HPOS is enabled.
 			$args = array(
 				'limit'        => $number_of_posts, // Query all orders
@@ -2694,7 +2734,7 @@ class Hubwoo_Admin
 		$args = apply_filters('hubwoo_deals_historical_sync_filter', $args);
 
 		//hpos changes
-		if (Hubwoo::hubwoo_check_hpos_active()) {
+		if ($is_hpos_enabled) {
 			$old_orders = wc_get_orders($args);
 		} else {
 			$old_orders = get_posts($args);
@@ -2959,8 +2999,9 @@ class Hubwoo_Admin
 			return;
 		}
 
+		$is_hpos_enabled = Hubwoo::hubwoo_check_hpos_active();
 		//hpos changes
-		if (Hubwoo::hubwoo_check_hpos_active()) {
+		if ($is_hpos_enabled) {
 			// HPOS is enabled.
 			$args = array(
 				'limit'        => 3, // Query all orders
@@ -3007,7 +3048,7 @@ class Hubwoo_Admin
 		$args = apply_filters('hubwoo_deals_sync_filter', $args);
 
 		//hpos changes
-		if (Hubwoo::hubwoo_check_hpos_active()) {
+		if ($is_hpos_enabled) {
 			$orders_needs_syncing = wc_get_orders($args);
 		} else {
 			$orders_needs_syncing = $query->query($args);
@@ -3015,8 +3056,8 @@ class Hubwoo_Admin
 
 		if (! empty($orders_needs_syncing)) {
 			foreach ($orders_needs_syncing as $key => $order_id) {
-				if (! as_next_scheduled_action('hubwoo_ecomm_deal_upsert', array('order_id' => $order_id, 'sync_type' => 'real'))) {
-					as_schedule_single_action(time() + ($key * 5), 'hubwoo_ecomm_deal_upsert', array('order_id' => $order_id, 'sync_type' => 'real'));
+				if (! as_has_scheduled_action('hubwoo_ecomm_deal_upsert', array('order_id' => $order_id, 'sync_type' => 'real'))) {
+					as_enqueue_async_action('hubwoo_ecomm_deal_upsert', array('order_id' => $order_id, 'sync_type' => 'real'));
 				}
 			}
 		}
@@ -3557,6 +3598,41 @@ class Hubwoo_Admin
 				}
 			}
 		}
+		if (1 != get_option('hubwoo_enable_worker_scheduler', 0)) {
+			// Deactivate old schedulers
+			if (as_next_scheduled_action('hubwoo_cron_schedule')) {
+				as_unschedule_action('hubwoo_cron_schedule');
+			}
+			if (as_next_scheduled_action('hubwoo_contacts_batch_sync')) {
+				as_unschedule_all_actions('hubwoo_contacts_batch_sync');
+			}
+			if (as_next_scheduled_action('hubwoo_deals_sync_check')) {
+				as_unschedule_action('hubwoo_deals_sync_check');
+			}
+			if (as_next_scheduled_action('hubwoo_ecomm_deal_update')) {
+				as_unschedule_action('hubwoo_ecomm_deal_update');
+			}
+			if (as_next_scheduled_action('hubwoo_ecomm_deal_upsert')) {
+				as_unschedule_all_actions('hubwoo_ecomm_deal_upsert');
+			}
+			if (as_next_scheduled_action('hubwoo_products_sync_check')) {
+				as_unschedule_action('hubwoo_products_sync_check');
+			}
+			if (as_next_scheduled_action('hubwoo_deal_update_schedule')) {
+				as_unschedule_action('hubwoo_deal_update_schedule');
+			}
+			if (as_next_scheduled_action('huwoo_abncart_clear_old_cart')) {
+				as_unschedule_action('huwoo_abncart_clear_old_cart');
+			}
+			if (as_next_scheduled_action('hubwoo_check_scheduler_status')) {
+				as_unschedule_action('hubwoo_check_scheduler_status');
+			}
+			// Activate new schedulers
+			HubWoo_Schedulers::get_instance()->hubwoo_initate_schedulers();
+			update_option('hubwoo_enable_worker_scheduler', 1);
+		}
+
+		HubWoo_Schedulers::get_instance()->hubwoo_trigger_heartbeat();
 	}
 
 	/**
@@ -3565,31 +3641,30 @@ class Hubwoo_Admin
 	 * @since 1.0.0
 	 * @param int $order_id order id to be updated.
 	 */
-	// public function hubwoo_ecomm_deal_update_order($order_id)
-	// {
+	public function hubwoo_ecomm_deal_update_order($order_id)
+	{
+		if (! empty($order_id)) {
+			$order = wc_get_order($order_id);
 
-	// 	if (! empty($order_id)) {
-	// 		$order = wc_get_order($order_id);
+			$upsert_meta = Hubwoo::hubwoo_hpos_get_meta_data($order, 'hubwoo_ecomm_deal_upsert', 'no');
+			if ($upsert_meta == 'yes') {
+				return;
+			}
 
-	// 		$upsert_meta = Hubwoo::hubwoo_hpos_get_meta_data($order, 'hubwoo_ecomm_deal_upsert', 'no');
+			$post_type = get_post_type($order_id);
+			if ('shop_subscription' == $post_type) {
+				return;
+			}
 
-	// 		if ($upsert_meta == 'yes') {
-	// 			return;
-	// 		}
+			if ('yes' == get_option('woocommerce_custom_orders_table_data_sync_enabled', 'no') && 'yes' == get_option('woocommerce_custom_orders_table_enabled', 'no')) {
+				return;
+			}
 
-	// 		$post_type = get_post_type($order_id);
+			Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_ecomm_deal_upsert', 'yes');
 
-	// 		if ('shop_subscription' == $post_type) {
-	// 			return;
-	// 		}
-
-	// 		if ('yes' == get_option('woocommerce_custom_orders_table_data_sync_enabled', 'no') && 'yes' == get_option('woocommerce_custom_orders_table_enabled', 'no')) {
-	// 			return;
-	// 		}
-
-	// 		Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_ecomm_deal_upsert', 'yes');
-	// 	}
-	// }
+			HubWoo_Schedulers::get_instance()->hubwoo_trigger_heartbeat();
+		}
+	}
 
 	/**
 	 * Initiate deactivation screen.
@@ -3616,9 +3691,91 @@ class Hubwoo_Admin
 	public function hubwoo_check_logs()
 	{
 		global $wpdb;
-		$table_name       = $wpdb->prefix . 'hubwoo_log';
-		$delete_timestamp = time() - (30 * 24 * 60 * 60);
 
-		$wpdb->get_results($wpdb->prepare('DELETE FROM %1s WHERE time < %d', $table_name, $delete_timestamp));
+		$table_name = $wpdb->prefix . 'hubwoo_log';
+		$hubwoo_logs_delete_after = (int) get_option('hubwoo_logs_delete_after', '30');
+		$delete_timestamp = time() - ($hubwoo_logs_delete_after * DAY_IN_SECONDS);
+		$daily_limit = 1500;
+
+		$sql = $wpdb->prepare("DELETE FROM {$table_name} WHERE time < %d ORDER BY time ASC LIMIT %d", $delete_timestamp, $daily_limit);
+		$wpdb->query($sql);
+	}
+
+	/**
+	 * Check and delete woo action schedulers logs.
+	 */
+	public function hubwoo_check_action_schedulers_logs() {
+
+    	global $wpdb;
+
+    	$actions_table = $wpdb->prefix . 'actionscheduler_actions';
+    	$logs_table    = $wpdb->prefix . 'actionscheduler_logs';
+
+		$hubwoo_woo_action_schedulers_logs_delete_after = (int) get_option('hubwoo_woo_action_schedulers_logs_delete_after', '30');
+    	$retention_time = time() - ($hubwoo_woo_action_schedulers_logs_delete_after * DAY_IN_SECONDS);
+    	$daily_limit    = 1500;
+
+    	$action_ids = $wpdb->get_col(
+        	$wpdb->prepare("SELECT action_id FROM {$actions_table} WHERE status = %s AND scheduled_date_gmt < FROM_UNIXTIME(%d) AND ( hook LIKE %s OR hook LIKE %s ) ORDER BY scheduled_date_gmt ASC LIMIT %d",
+            	'complete', $retention_time, 'hubwoo\_%', 'huwoo\_%', $daily_limit
+        	)
+    	);
+
+    	if ( empty( $action_ids ) ) {
+        	return;
+    	}
+
+    	$ids_placeholder = implode( ',', array_map( 'intval', $action_ids ) );
+
+    	$wpdb->query("DELETE FROM {$logs_table} WHERE action_id IN ({$ids_placeholder})");
+
+    	$wpdb->query("DELETE FROM {$actions_table} WHERE action_id IN ({$ids_placeholder})");
+	}
+
+	public function hubwoo_real_time_sync()
+	{
+		$tasks = array('deals_sync', 'products_sync', 'deals_update', 'contacts_sync');
+		foreach ($tasks as $task) {
+			if (HubWoo_Schedulers::get_instance()->is_task_running($task)) {
+				continue;
+			}
+			if (as_has_scheduled_action('hubwoo_real_time_task', array('task' => $task))) {
+				continue;
+			}
+			if (! HubWoo_Schedulers::get_instance()->should_schedule_task($task)) {
+				continue;
+			}
+			as_enqueue_async_action('hubwoo_real_time_task', array('task' => $task));
+		}
+	}
+
+	public function hubwoo_real_time_task($task)
+	{
+		if (!empty($task)) {
+			HubWoo_Schedulers::get_instance()->acquire_lock($task);
+
+			try {
+				@set_time_limit(300);
+				switch ($task) {
+					case 'deals_sync':
+						self::hubwoo_deals_sync_check();
+						break;
+					case 'products_sync':
+						self::hubwoo_products_sync_check();
+						break;
+					case 'deals_update':
+						self::hubwoo_ecomm_deal_update();
+						break;
+					case 'contacts_sync':
+						self::hubwoo_cron_schedule();
+						break;
+				}
+			} catch (Exception $e) {
+				error_log("[HubWoo] FAILED {$task}: " . $e->getMessage());
+				throw $e;
+			} finally {
+				HubWoo_Schedulers::get_instance()->release_lock($task);
+			}
+		}
 	}
 }

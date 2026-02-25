@@ -2384,25 +2384,8 @@ form#hubwoo-ocs-form > div {
 =            one cick sync            =
 =====================================*/
 
-select#hubwoo_customers_role_settings ~ .select2-container ,
-#hubwoo-selected-user-roles ~ .select2.select2-container ,
-#hubwoo_ecomm_won_stages ~ .select2.select2-container ,
-#hubwoo_ecomm_order_ocs_status ~ .select2.select2-container {
-  width: 100% !important;
-  display: block;
-}
-select#hubwoo_customers_role_settings ~ .select2-container .select2-selection.select2-selection--multiple ,
-#hubwoo-selected-user-roles ~ .select2-container .select2-selection.select2-selection--multiple ,
-#hubwoo_ecomm_won_stages ~ .select2-container .select2-selection.select2-selection--multiple ,
-#hubwoo_ecomm_order_ocs_status ~ .select2-container .select2-selection.select2-selection--multiple {
-	padding: 0.6rem;
-	display: block;
-}
-select#hubwoo_customers_role_settings ~ .select2-container .select2-search.select2-search--inline ,
-#hubwoo-selected-user-roles ~ .select2-container .select2-search.select2-search--inline ,
-#hubwoo_ecomm_won_stages ~ .select2-container .select2-search.select2-search--inline,
-#hubwoo_ecomm_order_ocs_status ~ .select2-container .select2-search.select2-search--inline {
-	float: none;
+select#hubwoo_customers_role_settings ~ .select2-container {
+  width: 90% !important;
 }
 .hubwoo-ocs-notice-wrap .hubwoo-ocs-options {
   font-size: 16px;
@@ -2468,7 +2451,7 @@ select#hubwoo_customers_role_settings ~ .select2-container .select2-search.selec
 .hubwoo-user-notice {
   padding: 10px 17px;
   color: #2d3e50;
-  max-width: 500px;
+  width: 500px;
   font-weight: 600;
   font-size: 16px;
   border-left: 2px solid #fd8567;
@@ -3226,9 +3209,8 @@ nav.mwb-heb__nav {
 .hubwoo-m-wrap-c form h2 {
   padding: 0 25px;
 }
-.hubwoo-m-wrap-c form table th ,
-.hubwoo-m-wrap-c form table td {
-  padding: 8px 25px;
+.hubwoo-m-wrap-c form table th {
+  padding-left: 25px;
 }
 .hubwoo-m-wrap-c form .submit {
   padding-bottom: 0;
@@ -3676,6 +3658,9 @@ form#hubwoo-enroll .submit {
 .hubwoo-onboard-suburb p {
   font-size: 16px
 }
+#hubwoo-onboard-user-roles span{
+  width: auto !important;
+}
 /*=====  End of onboarding emails  ======*/
 
 /*=====  Order Edit Page  ======*/
@@ -3817,38 +3802,3 @@ a.hubwoo-action-icon > img {
 }
 
 /*=====  End of Order Edit Page  ======*/
-
-
-/* --------------NEW CSS  */
-
-
-/* .selection {
-  display: block;
-  height: 100%;
-  min-height: 100%;
-  max-height: 100%;
-  border-radius: 8px;
-} */
-
-/* .select2.select2-container.select2-container--default.select2-container--below {
-  border: 1px solid #dedede;
-} */
-
-/* select#hubwoo_customers_role_settings ~ .select2-container {
-     border: 1px solid #dedede;
-    border-radius: 10px;
-    padding: 10px;
-}
-
-.select2-container--focus.select2-container--open .select2-selection.select2-selection--multiple {
-	box-shadow: none !important;
-}
-
-
-.select2-container--default .select2-selection--multiple {
-  border: none !important;
-}
-
-.wc-wp-version-gte-53 .select2-container .select2-selection--multiple {
-	border-color: transparent;
-} */
