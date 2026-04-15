@@ -74,7 +74,7 @@ if (! class_exists('Hubwoo')) {
 				$this->version = HUBWOO_VERSION;
 			} else {
 
-				$this->version = '1.6.6';
+				$this->version = '1.6.7';
 			}
 
 			$this->plugin_name = 'makewebbetter-hubspot-for-woocommerce';
@@ -243,7 +243,7 @@ if (! class_exists('Hubwoo')) {
 			$this->loader->add_action('admin_init', $plugin_admin, 'hubwoo_check_property_value');
 			$this->loader->add_action('admin_init', $plugin_admin, 'hubwoo_check_update_changes');
 			$this->loader->add_action('admin_notices', $plugin_admin, 'hubwoo_review_notice', 99);
-			$this->loader->add_action('admin_notices', $plugin_admin, 'hubwoo_festive_notice', 99);
+			// $this->loader->add_action('admin_notices', $plugin_admin, 'hubwoo_festive_notice', 99);
 
 			//hpos changes
 			$this->loader->add_action('admin_notices', $plugin_admin, 'hubwoo_hpos_notice', 99);
@@ -564,7 +564,7 @@ if (! class_exists('Hubwoo')) {
 
 			if (self::is_setup_completed()) {
 
-				return get_option('hubwoo_pro_version', '1.6.6');
+				return get_option('hubwoo_pro_version', '1.6.7');
 			} else {
 
 				return HUBWOO_VERSION;
@@ -1723,7 +1723,7 @@ if (! class_exists('Hubwoo')) {
 					'response_type'  => 'code',
 					'state'          => urlencode(self::get_oauth_state()),
 					'client_id'      => $hapikey,
-					'optional_scope' => 'automation%20files%20timeline%20content%20forms%20integration-sync%20e-commerce%20crm.objects.custom.read%20crm.objects.custom.write',
+					'optional_scope' => 'automation%20files%20forms%20e-commerce%20crm.objects.custom.read%20crm.objects.custom.write',
 					'scope'          => 'oauth%20crm.objects.owners.read%20crm.objects.contacts.write%20crm.objects.companies.write%20crm.lists.write%20crm.objects.companies.read%20crm.lists.read%20crm.objects.deals.read%20crm.objects.deals.write%20crm.objects.contacts.read%20crm.schemas.companies.write%20crm.schemas.contacts.write%20crm.schemas.deals.read%20crm.schemas.deals.write%20crm.schemas.contacts.read%20crm.schemas.companies.read',
 					'redirect_uri'   => 'https://auth.makewebbetter.com/integration/hubspot-auth/',
 				),
@@ -1915,9 +1915,6 @@ if (! class_exists('Hubwoo')) {
 			$scopes = get_option('hubwoo_pro_account_scopes', array());
 
 			$display_data['scope_notice'] = 'none';
-			if (! in_array('integration-sync', $scopes)) {
-				$display_data['scope_notice'] = 'block';
-			}
 
 			return $display_data;
 		}

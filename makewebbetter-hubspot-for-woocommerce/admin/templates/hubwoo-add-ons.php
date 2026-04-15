@@ -110,7 +110,7 @@ global $hubwoo;
 		</div>
 	</div>
 	<h3 class="hubwoo-addon-heading"><?php esc_html_e('Additional Services', 'makewebbetter-hubspot-for-woocommerce'); ?></h3>
-	<div class="hubwoo-box-card hubwoo-box-n-card">
+	<!-- <div class="hubwoo-box-card hubwoo-box-n-card">
 		<div class="hubwoo-box-n-card">
 			<div class="hubwoo-box-n-card__content">
 				<div class="hubwoo-fields-header hubwoo-common-header">
@@ -128,7 +128,7 @@ global $hubwoo;
 				</div>
 			</div>
 		</div>
-	</div>
+	</div> -->
 	<div class="hubwoo-box-card hubwoo-box-n-card">
 		<div class="hubwoo-box-n-card">
 			<div class="hubwoo-box-n-card__content">
@@ -194,7 +194,7 @@ global $hubwoo;
 				</div>
 				<div class="hubwoo-box-card__subtitle">
 					<?php
-					esc_html_e('Our HubSpot Migration Services help you to migrate your website from any CMS to HubSpot along with the blogs, automations, leads, deals, SMSs, calls & emails, etc. with experienced Hubspot migration consultants.', 'makewebbetter-hubspot-for-woocommerce');
+					esc_html_e('Our HubSpot Migration Services help you to migrate your website from any CMS to HubSpot along with the blogs, automations, leads, deals, SMSs, calls & emails, etc. with experienced HubSpot migration consultants.', 'makewebbetter-hubspot-for-woocommerce');
 					?>
 				</div>
 			</div>

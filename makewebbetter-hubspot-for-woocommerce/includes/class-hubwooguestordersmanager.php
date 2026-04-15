@@ -22,6 +22,14 @@
 class HubwooGuestOrdersManager {
 
 	/**
+	 * WooCommerce Order ID.
+	 *
+	 * @since 1.0.0
+	 * @var json
+	 */
+	public $_order_id;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param int $order_id    contact id to get property values of.

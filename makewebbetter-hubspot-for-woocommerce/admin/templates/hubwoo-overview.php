@@ -24,7 +24,7 @@ $portal_id = get_option( 'hubwoo_pro_hubspot_id', '' );
 		<div class="hubwoo-disconnect-wrapper">		
 			<h2><?php esc_html_e( 'Disconnect your WooCommerce store from HubSpot', 'makewebbetter-hubspot-for-woocommerce' ); ?></h2>			
 			<form class="hubwoo-disconnect-form">
-				<label for='delete_meta'><input name="delete_meta" type="checkbox" name="hubwoo-acc-meta"><?php esc_html_e( 'Do you want to delete all your WooCommerce data from HubSpot? If yes, check the box.', 'makewebbetter-hubspot-for-woocommerce' ); ?>
+				<label for='delete_meta'><input name="delete_meta" type="checkbox" name="hubwoo-acc-meta"><?php esc_html_e( 'Are you switching to a new portal or want to resync data from scratch? If yes, please check this box.', 'makewebbetter-hubspot-for-woocommerce' ); ?>
 				</label>
 			</form>
 			<div class="hubwoo-discon-spinner">
@@ -43,7 +43,7 @@ $portal_id = get_option( 'hubwoo_pro_hubspot_id', '' );
 			<div class="hubwoo-db__column">
 				<div class="hubwoo-db__box-full">
 					<div class="hubwoo-db__box-title">
-						<h4><?php esc_html_e( 'Connected Hubspot Account', 'makewebbetter-hubspot-for-woocommerce' ); ?></h4>
+						<h4><?php esc_html_e( 'Connected HubSpot Account', 'makewebbetter-hubspot-for-woocommerce' ); ?></h4>
 						<p>
 							<?php echo esc_textarea( $portal_id, 'makewebbetter-hubspot-for-woocommerce' ); ?> 
 							<a id ="hubwoo-re-auth" href="<?php echo esc_url( $hubspot_url ); ?>" class="hubwoo-discon">

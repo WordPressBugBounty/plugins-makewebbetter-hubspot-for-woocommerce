@@ -1781,7 +1781,7 @@
 						const deal_property = await jQuery.ajax({ type : 'POST', url  : ajaxUrl, data : { action : 'hubwoo_deals_create_property', hubwooSecurity, }, dataType : 'json', });
 						
 					allCreatedProperties = allCreatedProperties.map((prop) => { return prop.replace(/["']/g, "").trim()})
-					await saveUpdates( { 'hubwoo-groups-created': allCreatedGroups, 'hubwoo-properties-created': allCreatedProperties, 'hubwoo_fields_setup_completed': 1, 'hubwoo_pro_setup_completed': 1, 'hubwoo_plugin_version': '1.6.6' } );
+					await saveUpdates( { 'hubwoo-groups-created': allCreatedGroups, 'hubwoo-properties-created': allCreatedProperties, 'hubwoo_fields_setup_completed': 1, 'hubwoo_pro_setup_completed': 1, 'hubwoo_plugin_version': '1.6.7' } );
 					await runEcommSetup();
 					updateProgressBar( 100 );
 					transferScreen( 'move-to-list' );
@@ -1899,7 +1899,7 @@
 						jQuery( '.hubwoo-progress-wrap-import .hubwoo-progress-bar' ).html( 0 + '%' );
 						jQuery( '.hubwoo-progress-wrap-import' ).show(500);
 					} else {
-						jQuery( '.hubwoo-progress-wrap-import-deals p strong' ).html( '2. Syncing your Deals to Hubspot. This should only take a few moments. Thanks for your patience!' );
+						jQuery( '.hubwoo-progress-wrap-import-deals p strong' ).html( '2. Syncing your Deals to HubSpot. This should only take a few moments. Thanks for your patience!' );
 					}
 
 					var total_prod  = response.total_prod;

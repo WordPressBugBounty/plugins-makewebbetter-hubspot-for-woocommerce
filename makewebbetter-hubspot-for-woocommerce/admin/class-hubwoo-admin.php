@@ -1184,10 +1184,13 @@ class Hubwoo_Admin
 			else if ($user_type == 'guest') {
 				foreach ($response_data as $synced_contact) {
 					if (isset($synced_contact['properties']['email']) && !empty($synced_contact['properties']['email'])) {
-						$order_id = $order_email_id_map[$synced_contact['properties']['email']];
-						$order = wc_get_order($order_id);
-						Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_user_vid', $synced_contact['id']);
-						Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_pro_guest_order', 'synced');
+						if (isset($order_email_id_map[$synced_contact['properties']['email']])) {
+							$order_id = $order_email_id_map[$synced_contact['properties']['email']];
+							$order = wc_get_order($order_id);
+							Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_user_vid', $synced_contact['id']);
+							Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_pro_guest_order', 'synced');
+						} 
+						
 					}
 				}
 			}
@@ -1200,7 +1203,8 @@ class Hubwoo_Admin
 			$response_body = json_decode($response['body'], true);
 			$batch_contacts_data = $batch_contacts_data['inputs'];
 			foreach ($batch_contacts_data as $unsynced_contact_data) {
-
+				$unsynced_user_id = '';
+				$unsynced_guest_user_order = NULL;
 				$unsynced_user_email = $unsynced_contact_data['id'];
 				$unsynced_contact_properties = $unsynced_contact_data['properties'];
 				if ($user_type == 'reg') {

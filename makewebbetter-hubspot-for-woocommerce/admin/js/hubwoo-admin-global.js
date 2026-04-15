@@ -66,28 +66,28 @@ jQuery( document ).ready(function($){
 		}
 	);
 
-	jQuery(document).on(
-	'click',
-	'.hubwoo-hide-festive-notice',
-	function (e) {
-		e.preventDefault();
+	// jQuery(document).on(
+	// 	'click',
+	// 	'.hubwoo-hide-festive-notice',
+	// 	function (e) {
+	// 		e.preventDefault();
 
-		// Find and hide the notice instantly
-		const $notice = jQuery(this).closest('.notice');
-		$notice.fadeOut(200);
+	// 		// Find and hide the notice instantly
+	// 		const $notice = jQuery(this).closest('.notice');
+	// 		$notice.fadeOut(200);
 
-		// Save dismiss state via AJAX
-		jQuery.ajax({
-			type: 'POST',
-			url: ajaxUrl,
-			data: {
-				action: 'hubwoo_hide_festive_notice',
-				hubwooSecurity,
-			},
-			dataType: 'json'
-		});
-	}
-);
+	// 		// Save dismiss state via AJAX
+	// 		jQuery.ajax({
+	// 			type: 'POST',
+	// 			url: ajaxUrl,
+	// 			data: {
+	// 				action: 'hubwoo_hide_festive_notice',
+	// 				hubwooSecurity,
+	// 			},
+	// 			dataType: 'json'
+	// 		});
+	// 	}
+	// );
 
 
 });	

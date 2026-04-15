@@ -2905,4 +2905,48 @@ class HubWooConnectionMananager {
 		return $parsed_response;
 	}
 
+	/**
+	 * Remove installed app from portal.
+	 *
+	 * @since 1.6.7
+	 * @return array $parsed_response formatted array with status/response.
+	 */
+	public function remove_installed_app()
+	{
+		$url      = '/appinstalls/v3/external-install';
+		$headers  = $this->get_token_headers();
+		$res_body = '';
+
+		$response = wp_remote_request(
+			$this->base_url . $url,
+			array(
+				'method'  => 'DELETE',
+				'headers' => $headers,
+			)
+		);
+
+		/* translators: %1$s is the source object , %2$s is the target object */
+		$message = esc_html__('Remove installed app from portal', 'makewebbetter-hubspot-for-woocommerce');
+		$message = sprintf($message);
+
+
+		if (is_wp_error($response)) {
+			$status_code = $response->get_error_code();
+			$res_message = $response->get_error_message();
+		} else {
+			$status_code = wp_remote_retrieve_response_code($response);
+			$res_message = wp_remote_retrieve_response_message($response);
+			$res_body    = wp_remote_retrieve_body($response);
+		}
+
+		$parsed_response = array(
+			'status_code' => $status_code,
+			'response'    => $res_message,
+			'body'        => $res_body,
+		);
+
+		$this->create_log($message, $url, $parsed_response, 'association');
+		return $parsed_response;
+	}
+
 }

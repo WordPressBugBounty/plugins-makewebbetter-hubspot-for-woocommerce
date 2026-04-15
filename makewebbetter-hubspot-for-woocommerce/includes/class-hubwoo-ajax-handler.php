@@ -798,6 +798,8 @@ if ( ! class_exists( 'HubWooAjaxHandler' ) ) {
 				$delete_meta = 'yes' == $data['delete_meta'] ? true : false;
 			}
 
+			HubWooConnectionMananager::get_instance()->remove_installed_app();
+			
 			$hubwoo->hubwoo_switch_account( true, $delete_meta );
 			echo wp_json_encode( true );
 			wp_die();
