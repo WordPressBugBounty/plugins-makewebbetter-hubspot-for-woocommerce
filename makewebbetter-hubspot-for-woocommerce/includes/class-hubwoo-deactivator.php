@@ -49,8 +49,6 @@ if ( ! class_exists( 'Hubwoo_Deactivator' ) ) {
 			as_unschedule_action( 'hubwoo_deals_sync_background' );
 			as_unschedule_action( 'hubwoo_deal_update_schedule' );
 			as_unschedule_action( 'hubwoo_products_sync_check' );
-			as_unschedule_action( 'hubwoo_products_status_background' );
-			as_unschedule_action( 'hubwoo_products_sync_background' );
 			as_unschedule_action( 'hubwoo_check_logs' );
 			as_unschedule_action( 'hubwoo_check_action_schedulers_logs' );
 			as_unschedule_action( 'hubwoo_abncart_clear_old_cart' );

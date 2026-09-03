@@ -1,4 +1,5 @@
 <?php
+
 /**
  * The public-facing functionality of the plugin.
  *
@@ -18,7 +19,8 @@
  * @package    makewebbetter-hubspot-for-woocommerce
  * @subpackage makewebbetter-hubspot-for-woocommerce/public
  */
-class Hubwoo_Public {
+class Hubwoo_Public
+{
 
 	/**
 	 * The ID of this plugin.
@@ -43,7 +45,8 @@ class Hubwoo_Public {
 	 * @param      string $plugin_name       The name of the plugin.
 	 * @param      string $version    The version of this plugin.
 	 */
-	public function __construct( $plugin_name, $version ) {
+	public function __construct($plugin_name, $version)
+	{
 
 		$this->plugin_name = $plugin_name;
 		$this->version     = $version;
@@ -55,9 +58,10 @@ class Hubwoo_Public {
 	 * @since    1.0.0
 	 * @param      string $user_id       User Id.
 	 */
-	public function hubwoo_woocommerce_save_account_details( $user_id ) {
+	public function hubwoo_woocommerce_save_account_details($user_id)
+	{
 
-		update_user_meta( $user_id, 'hubwoo_pro_user_data_change', 'yes' );
+		update_user_meta($user_id, 'hubwoo_pro_user_data_change', 'yes');
 
 		HubWoo_Schedulers::get_instance()->hubwoo_trigger_heartbeat();
 	}
@@ -68,11 +72,12 @@ class Hubwoo_Public {
 	 *
 	 * @since    1.0.0
 	 */
-	public function hubwoo_add_hs_script() {
-		if ( ! in_array( 'leadin/leadin.php', get_option( 'active_plugins' ), true ) ) {
-			$portal_id = get_option( 'hubwoo_pro_hubspot_id', '' );
-			if ( ! empty( $portal_id ) ) {
-				wp_enqueue_script( 'hs-script-loader', '//js.hs-scripts.com/' . $portal_id . '.js', array( 'jquery' ), WC_VERSION, true );
+	public function hubwoo_add_hs_script()
+	{
+		if (! in_array('leadin/leadin.php', get_option('active_plugins'), true)) {
+			$portal_id = get_option('hubwoo_pro_hubspot_id', '');
+			if (! empty($portal_id)) {
+				wp_enqueue_script('hs-script-loader', '//js.hs-scripts.com/' . $portal_id . '.js', array('jquery'), WC_VERSION, true);
 			}
 		}
 	}
@@ -83,19 +88,21 @@ class Hubwoo_Public {
 	 * @since    1.0.0
 	 * @param    string $order_id       Order Id.
 	 */
-	public function hubwoo_pro_woocommerce_guest_orders( $order_id ) {
+	public function hubwoo_pro_woocommerce_guest_orders($order_id)
+	{
 
-		if ( ! empty( $order_id ) ) {
+		if (! empty($order_id)) {
 			//hpos changes
 			$order = wc_get_order($order_id);
 			$customer_id = $order->get_customer_id();
 
-			if ( empty( $customer_id ) || 0 == $customer_id ) {
-				if ('yes' != Hubwoo::hubwoo_hpos_get_meta_data($order, 'hubwoo_pro_guest_order', true)) {
-					Hubwoo::hubwoo_hpos_update_meta_data($order,'hubwoo_pro_guest_order','yes');
+			if (empty($customer_id) || 0 == $customer_id) {
+				$current_guest_status = Hubwoo::hubwoo_hpos_get_meta_data($order, 'hubwoo_pro_guest_order', true);
+				if (empty($current_guest_status)) {
+					Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_pro_guest_order', 'yes');
 				}
 			} else {
-				update_user_meta( $customer_id, 'hubwoo_pro_user_data_change', 'yes' );
+				update_user_meta($customer_id, 'hubwoo_pro_user_data_change', 'yes');
 			}
 		}
 	}
@@ -106,16 +113,17 @@ class Hubwoo_Public {
 	 * @since    1.0.0
 	 * @param      string $order_id       Order Id.
 	 */
-	public function hubwoo_pro_save_renewal_orders( $order_id ) {
+	public function hubwoo_pro_save_renewal_orders($order_id)
+	{
 
-		if ( ! empty( $order_id ) ) {
+		if (! empty($order_id)) {
 
 			$order = wc_get_order($order_id);
 			$user_id = (int) $order->get_customer_id();
 
-			if ( 0 !== $user_id && 0 < $user_id ) {
+			if (0 !== $user_id && 0 < $user_id) {
 
-				update_user_meta( $user_id, 'hubwoo_pro_user_data_change', 'yes' );
+				update_user_meta($user_id, 'hubwoo_pro_user_data_change', 'yes');
 			}
 		}
 	}
@@ -125,13 +133,14 @@ class Hubwoo_Public {
 	 *
 	 * @since    1.0.0
 	 */
-	public function hubwoo_save_changes_in_subs() {
+	public function hubwoo_save_changes_in_subs()
+	{
 
 		$user_id = get_current_user_id();
 
-		if ( $user_id ) {
+		if ($user_id) {
 
-			update_user_meta( $user_id, 'hubwoo_pro_user_data_change', 'yes' );
+			update_user_meta($user_id, 'hubwoo_pro_user_data_change', 'yes');
 		}
 	}
 
@@ -140,15 +149,16 @@ class Hubwoo_Public {
 	 *
 	 * @since    1.0.0
 	 */
-	public function hubwoo_subscription_switch() {
+	public function hubwoo_subscription_switch()
+	{
 
-		if ( isset( $_GET['switch-subscription'] ) && isset( $_GET['item'] ) ) {
+		if (isset($_GET['switch-subscription']) && isset($_GET['item'])) {
 
 			$user_id = get_current_user_id();
 
-			if ( $user_id ) {
+			if ($user_id) {
 
-				update_user_meta( $user_id, 'hubwoo_pro_user_data_change', 'yes' );
+				update_user_meta($user_id, 'hubwoo_pro_user_data_change', 'yes');
 			}
 		}
 	}
@@ -159,20 +169,21 @@ class Hubwoo_Public {
 	 * @since 1.0.0
 	 * @param object $subs subscription order object.
 	 */
-	public function hubwoo_pro_update_subs_changes( $subs ) {
+	public function hubwoo_pro_update_subs_changes($subs)
+	{
 
-		if ( ! empty( $subs ) && ( $subs instanceof WC_Subscription ) ) {
+		if (! empty($subs) && ($subs instanceof WC_Subscription)) {
 
 			$order_id = $subs->get_id();
 
-			if ( ! empty( $order_id ) ) {
+			if (! empty($order_id)) {
 
 				$order = wc_get_order($order_id);
 				$user_id = (int) $order->get_customer_id();
 
-				if ( 0 !== $user_id && 0 < $user_id ) {
+				if (0 !== $user_id && 0 < $user_id) {
 
-					update_user_meta( $user_id, 'hubwoo_pro_user_data_change', 'yes' );
+					update_user_meta($user_id, 'hubwoo_pro_user_data_change', 'yes');
 				}
 			}
 		}
@@ -185,27 +196,28 @@ class Hubwoo_Public {
 	 * @since    1.0.0
 	 * @param object $checkout woocommerce checkut object.
 	 */
-	public function hubwoo_pro_checkout_field( $checkout ) {
+	public function hubwoo_pro_checkout_field($checkout)
+	{
 
-		if ( is_user_logged_in() ) {
-			$subscribe_status    = get_user_meta( get_current_user_id(), 'hubwoo_checkout_marketing_optin', true );
-			$registeration_optin = get_user_meta( get_current_user_id(), 'hubwoo_registeration_marketing_optin', true );
+		if (is_user_logged_in()) {
+			$subscribe_status    = get_user_meta(get_current_user_id(), 'hubwoo_checkout_marketing_optin', true);
+			$registeration_optin = get_user_meta(get_current_user_id(), 'hubwoo_registeration_marketing_optin', true);
 		}
-		if ( ! empty( $subscribe_status ) && 'yes' === $subscribe_status ) {
+		if (! empty($subscribe_status) && 'yes' === $subscribe_status) {
 			return;
-		} elseif ( ! empty( $registeration_optin ) && 'yes' === $registeration_optin ) {
+		} elseif (! empty($registeration_optin) && 'yes' === $registeration_optin) {
 			return;
 		}
-		$label = get_option( 'hubwoo_checkout_optin_label', __( 'Subscribe', 'makewebbetter-hubspot-for-woocommerce' ) );
+		$label = get_option('hubwoo_checkout_optin_label', __('Subscribe', 'makewebbetter-hubspot-for-woocommerce'));
 		echo '<div class="form-row form-row-wide hubwoo_checkout_marketing_optin">';
 		woocommerce_form_field(
 			'hubwoo_checkout_marketing_optin',
 			array(
 				'type'  => 'checkbox',
-				'class' => array( 'hubwoo-input-checkbox', 'woocommerce-form__input', 'woocommerce-form__input-checkbox' ),
+				'class' => array('hubwoo-input-checkbox', 'woocommerce-form__input', 'woocommerce-form__input-checkbox'),
 				'label' => $label,
 			),
-			WC()->checkout->get_value( 'hubwoo_checkout_marketing_optin' )
+			WC()->checkout->get_value('hubwoo_checkout_marketing_optin')
 		);
 		echo '</div>';
 	}
@@ -215,15 +227,16 @@ class Hubwoo_Public {
 	 *
 	 * @since    1.0.0
 	 */
-	public function hubwoo_pro_register_field() {
+	public function hubwoo_pro_register_field()
+	{
 
-		$label = get_option( 'hubwoo_registeration_optin_label', __( 'Subscribe', 'makewebbetter-hubspot-for-woocommerce' ) );
+		$label = get_option('hubwoo_registeration_optin_label', __('Subscribe', 'makewebbetter-hubspot-for-woocommerce'));
 		echo '<div class="form-row form-row-wide hubwoo_registeration_marketing_optin">';
 		woocommerce_form_field(
 			'hubwoo_registeration_marketing_optin',
 			array(
 				'type'    => 'checkbox',
-				'class'   => array( 'hubwoo-input-checkbox', 'woocommerce-form__input', 'woocommerce-form__input-checkbox' ),
+				'class'   => array('hubwoo-input-checkbox', 'woocommerce-form__input', 'woocommerce-form__input-checkbox'),
 				'label'   => $label,
 				'default' => 'yes',
 			),
@@ -238,26 +251,27 @@ class Hubwoo_Public {
 	 * @since 1.0.0
 	 * @param int $order_id order ID.
 	 */
-	public function hubwoo_pro_process_checkout_optin( $order_id ) {
+	public function hubwoo_pro_process_checkout_optin($order_id)
+	{
 
-		if ( ! empty( $_REQUEST['woocommerce-process-checkout-nonce'] ) ) {
+		if (! empty($_REQUEST['woocommerce-process-checkout-nonce'])) {
 
-			$request = sanitize_text_field( wp_unslash( $_REQUEST['woocommerce-process-checkout-nonce'] ) );
+			$request = sanitize_text_field(wp_unslash($_REQUEST['woocommerce-process-checkout-nonce']));
 
-			$nonce_value = wc_get_var( $request );
+			$nonce_value = wc_get_var($request);
 
-			if ( ( ! empty( $nonce_value ) && wp_verify_nonce( $nonce_value, 'woocommerce-process_checkout' ) ) ||  is_user_logged_in() ) {
-				if ( ! empty( $_POST['hubwoo_checkout_marketing_optin'] ) ) {
+			if (! empty($nonce_value) && wp_verify_nonce($nonce_value, 'woocommerce-process_checkout')) {
+				if (! empty($_POST['hubwoo_checkout_marketing_optin'])) {
 
-					if ( ! empty( $order_id ) ) {
+					if (! empty($order_id)) {
 
-						if ( is_user_logged_in() ) {
+						if (is_user_logged_in()) {
 
-							update_user_meta( get_current_user_id(), 'hubwoo_checkout_marketing_optin', 'yes' );
+							update_user_meta(get_current_user_id(), 'hubwoo_checkout_marketing_optin', 'yes');
 						} else {
 
 							$order = wc_get_order($order_id);
-							Hubwoo::hubwoo_hpos_update_meta_data($order,'hubwoo_checkout_marketing_optin','yes');
+							Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_checkout_marketing_optin', 'yes');
 						}
 					}
 				}
@@ -273,15 +287,16 @@ class Hubwoo_Public {
 	 * @since 1.0.0
 	 * @param int $user_id user ID.
 	 */
-	public function hubwoo_save_register_optin( $user_id ) {
+	public function hubwoo_save_register_optin($user_id)
+	{
 
-		if ( empty( $user_id ) ) {
+		if (empty($user_id)) {
 			return;
 		}
-		$nonce_value = isset( $_POST['woocommerce-register-nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['woocommerce-register-nonce'] ) ) : '';
-		if ( isset( $_POST['email'] ) && wp_verify_nonce( $nonce_value, 'woocommerce-register' ) ) {
-			if ( isset( $_POST['hubwoo_registeration_marketing_optin'] ) ) {
-				update_user_meta( $user_id, 'hubwoo_registeration_marketing_optin', 'yes' );
+		$nonce_value = isset($_POST['woocommerce-register-nonce']) ? sanitize_text_field(wp_unslash($_POST['woocommerce-register-nonce'])) : '';
+		if (isset($_POST['email']) && wp_verify_nonce($nonce_value, 'woocommerce-register')) {
+			if (isset($_POST['hubwoo_registeration_marketing_optin'])) {
+				update_user_meta($user_id, 'hubwoo_registeration_marketing_optin', 'yes');
 			}
 		}
 	}
@@ -291,12 +306,13 @@ class Hubwoo_Public {
 	 *
 	 * @since 1.0.0
 	 */
-	public function hubwoo_abncart_start_session() {
-		if ( WC()->is_rest_api_request() ) {
+	public function hubwoo_abncart_start_session()
+	{
+		if (WC()->is_rest_api_request()) {
 			return;
 		}
 
-		if ( function_exists( 'WC' ) && ! empty( WC()->session ) && ! is_admin() ) {
+		if (function_exists('WC') && ! empty(WC()->session) && ! is_admin()) {
 
 			WC()->session;
 			self::hubwoo_abncart_set_locale();
@@ -308,14 +324,15 @@ class Hubwoo_Public {
 	 *
 	 * @since 1.0.0
 	 */
-	public function hubwoo_track_cart_for_formuser() {
+	public function hubwoo_track_cart_for_formuser()
+	{
 
-		if ( ! empty( WC()->session ) ) {
-			if ( ! empty( WC()->session->get( 'mwb_guest_user_email' ) ) && empty( WC()->session->get( 'hs_form_user_tracked' ) ) ) {
+		if (! empty(WC()->session)) {
+			if (! empty(WC()->session->get('mwb_guest_user_email')) && empty(WC()->session->get('hs_form_user_tracked'))) {
 
 				$guest_user_cart = array();
 
-				if ( function_exists( 'WC' ) ) {
+				if (function_exists('WC')) {
 
 					$guest_user_cart['cart'] = WC()->session->cart;
 				} else {
@@ -323,21 +340,21 @@ class Hubwoo_Public {
 					$guest_user_cart['cart'] = $woocommerce->session->cart;
 				}
 
-				if ( empty( $guest_user_cart['cart'] ) ) {
+				if (empty($guest_user_cart['cart'])) {
 					return;
 				}
 
-				$get_cookie = WC()->session->get_session_cookie();
+				$get_cookie = method_exists( WC()->session, 'get_session_cookie' ) ? WC()->session->get_session_cookie() : null;
 
 				$session_id = '';
-				if ( ! empty( $get_cookie ) ) {
+				if (! empty($get_cookie)) {
 					$session_id = $get_cookie[0];
 				}
 
-				$locale = ! empty( WC()->session->get( 'locale' ) ) ? WC()->session->get( 'locale' ) : '';
+				$locale = ! empty(WC()->session->get('locale')) ? WC()->session->get('locale') : '';
 
 				$user_data = array(
-					'email'     => WC()->session->get( 'mwb_guest_user_email' ),
+					'email'     => WC()->session->get('mwb_guest_user_email'),
 					'cartData'  => $guest_user_cart,
 					'timeStamp' => time(),
 					'sessionID' => $session_id,
@@ -345,9 +362,9 @@ class Hubwoo_Public {
 					'sent'      => 'no',
 				);
 
-				self::hubwoo_abncart_update_new_data( WC()->session->get( 'mwb_guest_user_email' ), $user_data, $session_id );
+				self::hubwoo_abncart_update_new_data(WC()->session->get('mwb_guest_user_email'), $user_data, $session_id);
 
-				WC()->session->set( 'hs_form_user_tracked', true );
+				WC()->session->set('hs_form_user_tracked', true);
 			}
 		}
 	}
@@ -357,17 +374,18 @@ class Hubwoo_Public {
 	 *
 	 * @since 1.0.0
 	 */
-	public function hubwoo_save_guest_user_cart() {
+	public function hubwoo_save_guest_user_cart()
+	{
 
-		check_ajax_referer( 'hubwoo_cart_security', 'nonce' );
+		check_ajax_referer('hubwoo_cart_security', 'nonce');
 
-		if ( ! empty( $_POST['email'] ) ) {
+		if (! empty($_POST['email'])) {
 
-			$posted_email = sanitize_email( wp_unslash( $_POST['email'] ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			$posted_email = sanitize_email(wp_unslash($_POST['email'])); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 			$guest_user_cart = array();
 
-			if ( function_exists( 'WC' ) ) {
+			if (function_exists('WC')) {
 
 				$guest_user_cart['cart'] = WC()->session->cart;
 			} else {
@@ -375,22 +393,22 @@ class Hubwoo_Public {
 				$guest_user_cart['cart'] = $woocommerce->session->cart;
 			}
 
-			$get_cookie = WC()->session->get_session_cookie();
+			$get_cookie = method_exists( WC()->session, 'get_session_cookie' ) ? WC()->session->get_session_cookie() : null;
 
 			$session_id = '';
-			if ( ! empty( $get_cookie ) ) {
+			if (! empty($get_cookie)) {
 				$session_id = $get_cookie[0];
 			}
 
-			if ( ! empty( $session_id ) ) {
+			if (! empty($session_id)) {
 
-				$locale = ! empty( $_POST['locale'] ) ? sanitize_text_field( wp_unslash( $_POST['locale'] ) ) : '';
+				$locale = ! empty($_POST['locale']) ? sanitize_text_field(wp_unslash($_POST['locale'])) : '';
 
-				if ( empty( WC()->session->get( 'mwb_guest_user_email' ) ) ) {
+				if (empty(WC()->session->get('mwb_guest_user_email'))) {
 
-					WC()->session->set( 'mwb_guest_user_email', ! empty( $posted_email ) ? $posted_email : '' );
+					WC()->session->set('mwb_guest_user_email', ! empty($posted_email) ? $posted_email : '');
 					$user_data = array(
-						'email'     => WC()->session->get( 'mwb_guest_user_email' ),
+						'email'     => WC()->session->get('mwb_guest_user_email'),
 						'cartData'  => $guest_user_cart,
 						'timeStamp' => time(),
 						'sessionID' => $session_id,
@@ -398,31 +416,31 @@ class Hubwoo_Public {
 						'sent'      => 'no',
 					);
 
-					self::hubwoo_abncart_update_new_data( WC()->session->get( 'mwb_guest_user_email' ), $user_data, $session_id );
+					self::hubwoo_abncart_update_new_data(WC()->session->get('mwb_guest_user_email'), $user_data, $session_id);
 				} else {
 
-					$new_email_entered = ! empty( $posted_email ) ? $posted_email : '';
+					$new_email_entered = ! empty($posted_email) ? $posted_email : '';
 
-					$before_entered_email = WC()->session->get( 'mwb_guest_user_email' );
+					$before_entered_email = WC()->session->get('mwb_guest_user_email');
 
-					WC()->session->set( 'mwb_guest_user_email', $new_email_entered );
+					WC()->session->set('mwb_guest_user_email', $new_email_entered);
 
-					$existing_cart_data = get_option( 'mwb_hubwoo_guest_user_cart', array() );
+					$existing_cart_data = get_option('mwb_hubwoo_guest_user_cart', array());
 
-					if ( ! empty( $existing_cart_data ) ) {
+					if (! empty($existing_cart_data)) {
 
-						if ( $new_email_entered === $before_entered_email ) {
+						if ($new_email_entered === $before_entered_email) {
 
-							foreach ( $existing_cart_data as $key => &$single_cart_data ) {
+							foreach ($existing_cart_data as $key => &$single_cart_data) {
 
-								if ( array_key_exists( 'sessionID', $single_cart_data ) && $single_cart_data['sessionID'] == $session_id ) {
+								if (array_key_exists('sessionID', $single_cart_data) && $single_cart_data['sessionID'] == $session_id) {
 
 									$single_cart_data['cartData']  = $guest_user_cart;
 									$single_cart_data['timeStamp'] = time();
 									$single_cart_data['locale']    = $locale;
 									$single_cart_data['sent']      = 'no';
 									break;
-								} elseif ( array_key_exists( 'email', $single_cart_data ) && $single_cart_data['email'] == $before_entered_email ) {
+								} elseif (array_key_exists('email', $single_cart_data) && $single_cart_data['email'] == $before_entered_email) {
 
 									$single_cart_data['cartData']  = $guest_user_cart;
 									$single_cart_data['timeStamp'] = time();
@@ -433,9 +451,9 @@ class Hubwoo_Public {
 							}
 						} else {
 
-							foreach ( $existing_cart_data as $key => &$single_cart_data ) {
+							foreach ($existing_cart_data as $key => &$single_cart_data) {
 
-								if ( array_key_exists( 'sessionID', $single_cart_data ) && $single_cart_data['sessionID'] == $session_id ) {
+								if (array_key_exists('sessionID', $single_cart_data) && $single_cart_data['sessionID'] == $session_id) {
 
 									$single_cart_data['cartData']  = $guest_user_cart;
 									$single_cart_data['timeStamp'] = time();
@@ -458,19 +476,19 @@ class Hubwoo_Public {
 						}
 					} else {
 
-						WC()->session->set( 'mwb_guest_user_email', ! empty( $posted_email ) ? $posted_email : '' );
+						WC()->session->set('mwb_guest_user_email', ! empty($posted_email) ? $posted_email : '');
 						$user_data = array(
-							'email'     => WC()->session->get( 'mwb_guest_user_email' ),
+							'email'     => WC()->session->get('mwb_guest_user_email'),
 							'cartData'  => $guest_user_cart,
 							'timeStamp' => time(),
 							'sessionID' => $session_id,
 							'locale'    => $locale,
 							'sent'      => 'no',
 						);
-						self::hubwoo_abncart_update_new_data( WC()->session->get( 'mwb_guest_user_email' ), $user_data, $session_id );
+						self::hubwoo_abncart_update_new_data(WC()->session->get('mwb_guest_user_email'), $user_data, $session_id);
 					}
 
-					update_option( 'mwb_hubwoo_guest_user_cart', $existing_cart_data );
+					update_option('mwb_hubwoo_guest_user_cart', $existing_cart_data, false);
 				}
 			}
 
@@ -483,9 +501,10 @@ class Hubwoo_Public {
 	 *
 	 * @since 1.0.0
 	 */
-	public static function hubwoo_abncart_set_locale() {
+	public static function hubwoo_abncart_set_locale()
+	{
 
-		if ( defined( 'ICL_LANGUAGE_CODE' ) ) {
+		if (defined('ICL_LANGUAGE_CODE')) {
 
 			$locale = ICL_LANGUAGE_CODE;
 		} else {
@@ -493,9 +512,9 @@ class Hubwoo_Public {
 			$locale = get_locale();
 		}
 
-		if ( ! empty( $locale ) ) {
+		if (! empty($locale)) {
 
-			WC()->session->set( 'locale', $locale );
+			WC()->session->set('locale', $locale);
 		}
 	}
 
@@ -504,28 +523,34 @@ class Hubwoo_Public {
 	 *
 	 * @since 1.0.0
 	 */
-	public function hubwoo_track_email_for_guest_users() {
+	public function hubwoo_track_email_for_guest_users()
+	{
 
-		if ( ! is_user_logged_in() ) {
+		if (! is_user_logged_in()) {
 
-			if ( defined( 'ICL_LANGUAGE_CODE' ) ) {
+			if (defined('ICL_LANGUAGE_CODE')) {
 
 				$locale = ICL_LANGUAGE_CODE;
 			} else {
 
 				$locale = get_locale();
 			}
-			?>
+?>
 			<script type="text/javascript">
-				jQuery( 'input#billing_email' ).on( 'change', function() {
-					var guest_user_email = jQuery( 'input#billing_email' ).val();
-					var ajaxUrl = "<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>";
-					var locale = "<?php echo esc_html( $locale ); ?>";
-					var nonce = "<?php echo esc_html( wp_create_nonce( 'hubwoo_cart_security' ) ); ?>";
-					jQuery.post( ajaxUrl, { 'action' : 'hubwoo_save_guest_user_cart', 'email' : guest_user_email, 'locale' : locale, 'nonce' : nonce }, function( status ) {});
+				jQuery('input#billing_email').on('change', function() {
+					var guest_user_email = jQuery('input#billing_email').val();
+					var ajaxUrl = "<?php echo esc_url(admin_url('admin-ajax.php')); ?>";
+					var locale = "<?php echo esc_html($locale); ?>";
+					var nonce = "<?php echo esc_html(wp_create_nonce('hubwoo_cart_security')); ?>";
+					jQuery.post(ajaxUrl, {
+						'action': 'hubwoo_save_guest_user_cart',
+						'email': guest_user_email,
+						'locale': locale,
+						'nonce': nonce
+					}, function(status) {});
 				});
 			</script>
-			<?php
+		<?php
 		}
 	}
 
@@ -535,55 +560,75 @@ class Hubwoo_Public {
 	 * @since 1.0.0
 	 * @param int $order_id id of new order.
 	 */
-	public function hubwoo_abncart_woocommerce_new_orders( $order_id ) {
+	public function hubwoo_abncart_woocommerce_new_orders($order_id)
+	{
 
-		if ( empty( WC()->session ) ) {
-			return; }
-
-		$get_cookie = WC()->session->get_session_cookie();
-		
-		$session_id = '';
-		if ( ! empty( $get_cookie ) ) {
-			$session_id = $get_cookie[0];
+		if (empty(WC()->session)) {
+			return;
 		}
 
-		if ( ! empty( $order_id ) ) {
+		// Classic sessions expose a cookie-based id via get_session_cookie().
+		// WooCommerce Blocks/Store API checkout runs under
+		// StoreApi\SessionHandler instead, which has no such cookie -- fall
+		// back to get_customer_id() (shared by both session types) so the
+		// sessionID match below isn't silently unusable for block checkout.
+		if ( method_exists( WC()->session, 'get_session_cookie' ) ) {
+			$get_cookie = WC()->session->get_session_cookie();
+			$session_id = ! empty( $get_cookie ) ? $get_cookie[0] : '';
+		} else {
+			$session_id = (string) WC()->session->get_customer_id();
+		}
 
-			$order = new WC_Order( $order_id );
+		if (! empty($order_id)) {
+
+			$order = wc_get_order($order_id);
+
+			if (! $order) {
+				return;
+			}
 
 			$order_status = $order->get_status();
 
-			$order_email = $order->get_billing_email();
+			// HubSpot/this plugin treat emails case-insensitively elsewhere
+			// (see the guest-sync fixes) -- normalize here too, so a cart
+			// tracked under one case still gets matched and cleared when the
+			// order's billing email differs only in case.
+			$order_email = strtolower($order->get_billing_email());
 
-			$existing_cart_data = get_option( 'mwb_hubwoo_guest_user_cart', array() );
+			$session_email = WC()->session->get('mwb_guest_user_email');
+			$session_email = ! empty($session_email) ? strtolower($session_email) : null;
 
-			if ( 'failed' !== $order_status ) {
+			$existing_cart_data = get_option('mwb_hubwoo_guest_user_cart', array());
 
-				if ( ! empty( $existing_cart_data ) ) {
+			if ('failed' !== $order_status) {
 
-					foreach ( $existing_cart_data as $key => &$single_cart_data ) {
+				if (! empty($existing_cart_data)) {
 
-						if ( array_key_exists( 'sessionID', $single_cart_data ) && $single_cart_data['sessionID'] == $session_id ) {
+					foreach ($existing_cart_data as $key => &$single_cart_data) {
 
-							if ( isset( $single_cart_data['cartData']['cart'] ) ) {
+						$stored_email = array_key_exists('email', $single_cart_data) ? strtolower($single_cart_data['email']) : null;
+
+						if (array_key_exists('sessionID', $single_cart_data) && $single_cart_data['sessionID'] == $session_id) {
+
+							if (isset($single_cart_data['cartData']['cart'])) {
 
 								$single_cart_data['cartData']['cart'] = '';
 								$single_cart_data['sent']             = 'no';
 							}
 						}
 
-						if ( array_key_exists( 'email', $single_cart_data ) && $single_cart_data['email'] == $order_email ) {
+						if (null !== $stored_email && $stored_email === $order_email) {
 
-							if ( isset( $single_cart_data['cartData']['cart'] ) ) {
+							if (isset($single_cart_data['cartData']['cart'])) {
 
 								$single_cart_data['cartData']['cart'] = '';
 								$single_cart_data['sent']             = 'no';
 							}
 						}
 
-						if ( array_key_exists( 'email', $single_cart_data ) && null !== WC()->session->get( 'mwb_guest_user_email' ) && WC()->session->get( 'mwb_guest_user_email' ) == $single_cart_data['email'] ) {
+						if (null !== $stored_email && null !== $session_email && $stored_email === $session_email) {
 
-							if ( isset( $single_cart_data['cartData']['cart'] ) ) {
+							if (isset($single_cart_data['cartData']['cart'])) {
 
 								$single_cart_data['cartData']['cart'] = '';
 								$single_cart_data['sent']             = 'no';
@@ -591,13 +636,13 @@ class Hubwoo_Public {
 						}
 					}
 
-					update_option( 'mwb_hubwoo_guest_user_cart', $existing_cart_data );
+					update_option('mwb_hubwoo_guest_user_cart', $existing_cart_data, false);
 				}
 			}
 
-			if ( is_user_logged_in() ) {
+			if (is_user_logged_in()) {
 
-				update_user_meta( get_current_user_id(), 'hubwoo_pro_user_cart_sent', 'no' );
+				update_user_meta(get_current_user_id(), 'hubwoo_pro_user_cart_sent', 'no');
 			}
 		}
 	}
@@ -607,73 +652,85 @@ class Hubwoo_Public {
 	 *
 	 * @since 1.0.0
 	 */
-	public static function hubwoo_abncart_track_guest_cart() {
+	public static function hubwoo_abncart_track_guest_cart()
+	{
 
-		if ( ! is_user_logged_in() ) {
+		if (! is_user_logged_in()) {
 
-			$get_cookie = WC()->session->get_session_cookie();
+			if ( empty( WC()->session ) ) {
+				return;
+			}
 
-			if ( ! empty( $get_cookie ) ) {
+			// Classic sessions expose a cookie-based id via
+			// get_session_cookie(). WooCommerce Blocks/Store API cart
+			// mutations run under StoreApi\SessionHandler instead, which has
+			// no such cookie -- but both session types read/write the same
+			// underlying session row keyed by customer id, so fall back to
+			// that rather than bailing out and leaving every block-checkout
+			// cart change untracked.
+			if ( method_exists( WC()->session, 'get_session_cookie' ) ) {
+				$get_cookie = WC()->session->get_session_cookie();
+				$session_id = ! empty( $get_cookie ) ? $get_cookie[0] : '';
+			} else {
+				$session_id = (string) WC()->session->get_customer_id();
+			}
 
-				$session_id = $get_cookie[0];
+			if (! empty($session_id)) {
 
-				if ( ! empty( $session_id ) ) {
+				if (null !== WC()->session->get('mwb_guest_user_email')) {
 
-					if ( null !== WC()->session->get( 'mwb_guest_user_email' ) ) {
+					$guest_user_email = WC()->session->get('mwb_guest_user_email');
 
-						$guest_user_email = WC()->session->get( 'mwb_guest_user_email' );
+					if (! empty($guest_user_email)) {
 
-						if ( ! empty( $guest_user_email ) ) {
+						$guest_user_cart = array();
 
-							$guest_user_cart = array();
+						$locale = ! empty(WC()->session->get('locale')) ? WC()->session->get('locale') : '';
 
-							$locale = ! empty( WC()->session->get( 'locale' ) ) ? WC()->session->get( 'locale' ) : '';
+						if (function_exists('WC')) {
 
-							if ( function_exists( 'WC' ) ) {
+							$guest_user_cart['cart'] = WC()->session->cart;
+						} else {
 
-								$guest_user_cart['cart'] = WC()->session->cart;
-							} else {
+							$guest_user_cart['cart'] = $woocommerce->session->cart;
+						}
 
-								$guest_user_cart['cart'] = $woocommerce->session->cart;
-							}
+						$existing_cart_data = get_option('mwb_hubwoo_guest_user_cart', array());
 
-							$existing_cart_data = get_option( 'mwb_hubwoo_guest_user_cart', array() );
+						$saved_cart = array();
 
-							$saved_cart = array();
+						if (! empty($existing_cart_data)) {
 
-							if ( ! empty( $existing_cart_data ) ) {
+							foreach ($existing_cart_data as $single_cart_data) {
 
-								foreach ( $existing_cart_data as $single_cart_data ) {
+								if (array_key_exists('email', $single_cart_data) && WC()->session->get('mwb_guest_user_email') == $single_cart_data['email']) {
 
-									if ( array_key_exists( 'email', $single_cart_data ) && WC()->session->get( 'mwb_guest_user_email' ) == $single_cart_data['email'] ) {
+									if (array_key_exists('cartData', $single_cart_data)) {
 
-										if ( array_key_exists( 'cartData', $single_cart_data ) ) {
-
-											if ( ! empty( $single_cart_data['cartData']['cart'] ) ) {
-												$saved_cart = $single_cart_data['cartData']['cart'];
-											}
+										if (! empty($single_cart_data['cartData']['cart'])) {
+											$saved_cart = $single_cart_data['cartData']['cart'];
 										}
-										break;
 									}
+									break;
 								}
 							}
-
-							if ( $saved_cart === $guest_user_cart['cart'] ) {
-
-								return;
-							}
-
-							$user_data = array(
-								'email'     => WC()->session->get( 'mwb_guest_user_email' ),
-								'cartData'  => $guest_user_cart,
-								'timeStamp' => time(),
-								'sessionID' => $session_id,
-								'locale'    => $locale,
-								'sent'      => 'no',
-							);
-
-							self::hubwoo_abncart_update_new_data( WC()->session->get( 'mwb_guest_user_email' ), $user_data, $session_id );
 						}
+
+						if ($saved_cart === $guest_user_cart['cart']) {
+
+							return;
+						}
+
+						$user_data = array(
+							'email'     => WC()->session->get('mwb_guest_user_email'),
+							'cartData'  => $guest_user_cart,
+							'timeStamp' => time(),
+							'sessionID' => $session_id,
+							'locale'    => $locale,
+							'sent'      => 'no',
+						);
+
+						self::hubwoo_abncart_update_new_data(WC()->session->get('mwb_guest_user_email'), $user_data, $session_id);
 					}
 				}
 			}
@@ -688,21 +745,22 @@ class Hubwoo_Public {
 	 * @param array  $user_data formatted data for cart.
 	 * @param string $session session id for the cart activity.
 	 */
-	public static function hubwoo_abncart_update_new_data( $email, $user_data, $session ) {
+	public static function hubwoo_abncart_update_new_data($email, $user_data, $session)
+	{
 
-		$existing_cart_data = get_option( 'mwb_hubwoo_guest_user_cart', array() );
+		$existing_cart_data = get_option('mwb_hubwoo_guest_user_cart', array());
 		$update_flag        = false;
 
-		if ( ! empty( $existing_cart_data ) ) {
+		if (! empty($existing_cart_data)) {
 
-			foreach ( $existing_cart_data as $key => &$single_cart_data ) {
+			foreach ($existing_cart_data as $key => &$single_cart_data) {
 
-				if ( ! empty( $single_cart_data['email'] ) && $single_cart_data['email'] == $email ) {
+				if (! empty($single_cart_data['email']) && $single_cart_data['email'] == $email) {
 
 					$single_cart_data = $user_data;
 					$update_flag      = true;
 					break;
-				} elseif ( ! empty( $single_cart_data['sessionID'] ) && $single_cart_data['sessionID'] == $session ) {
+				} elseif (! empty($single_cart_data['sessionID']) && $single_cart_data['sessionID'] == $session) {
 
 					$single_cart_data = $user_data;
 					$update_flag      = true;
@@ -711,12 +769,12 @@ class Hubwoo_Public {
 			}
 		}
 
-		if ( ! $update_flag ) {
+		if (! $update_flag) {
 
 			$existing_cart_data[] = $user_data;
 		}
 
-		update_option( 'mwb_hubwoo_guest_user_cart', $existing_cart_data );
+		update_option('mwb_hubwoo_guest_user_cart', $existing_cart_data, false);
 	}
 
 	/**
@@ -725,30 +783,31 @@ class Hubwoo_Public {
 	 * @since 1.0.0
 	 * @param int $user_id user ID.
 	 */
-	public function hubwoo_abncart_user_registeration( $user_id ) {
+	public function hubwoo_abncart_user_registeration($user_id)
+	{
 
-		$user  = get_user_by( 'id', $user_id );
-		$email = ! empty( $user->data->user_email ) ? $user->data->user_email : '';
-		if ( empty( $email ) || null == WC()->session ) {
+		$user  = get_user_by('id', $user_id);
+		$email = ! empty($user->data->user_email) ? $user->data->user_email : '';
+		if (empty($email) || null == WC()->session) {
 			return;
 		}
-		$get_cookie = WC()->session->get_session_cookie();
+		$get_cookie = method_exists( WC()->session, 'get_session_cookie' ) ? WC()->session->get_session_cookie() : null;
 
-		if ( ! empty( $get_cookie ) ) {
+		if (! empty($get_cookie)) {
 
 			$session_id         = $get_cookie[0];
-			$existing_cart_data = get_option( 'mwb_hubwoo_guest_user_cart', array() );
-			foreach ( $existing_cart_data as $key => &$single_cart_data ) {
-				if ( array_key_exists( 'sessionID', $single_cart_data ) && $single_cart_data['sessionID'] === $session_id ) {
-					if ( ! empty( $single_cart_data['sent'] ) && 'no' === $single_cart_data['sent'] ) {
-						unset( $existing_cart_data[ $key ] );
+			$existing_cart_data = get_option('mwb_hubwoo_guest_user_cart', array());
+			foreach ($existing_cart_data as $key => &$single_cart_data) {
+				if (array_key_exists('sessionID', $single_cart_data) && $single_cart_data['sessionID'] === $session_id) {
+					if (! empty($single_cart_data['sent']) && 'no' === $single_cart_data['sent']) {
+						unset($existing_cart_data[$key]);
 					} else {
 						$single_cart_data['cartData'] = '';
 						$single_cart_data['sent']     = 'no';
 					}
-				} elseif ( array_key_exists( 'email', $single_cart_data ) && $single_cart_data['email'] === $email ) {
-					if ( ! empty( $single_cart_data['sent'] ) && 'no' === $single_cart_data['sent'] ) {
-						unset( $existing_cart_data[ $key ] );
+				} elseif (array_key_exists('email', $single_cart_data) && $single_cart_data['email'] === $email) {
+					if (! empty($single_cart_data['sent']) && 'no' === $single_cart_data['sent']) {
+						unset($existing_cart_data[$key]);
 					} else {
 						$single_cart_data['cartData'] = '';
 						$single_cart_data['sent']     = 'no';
@@ -756,14 +815,14 @@ class Hubwoo_Public {
 				}
 			}
 
-			update_option( 'mwb_hubwoo_guest_user_cart', $existing_cart_data );
+			update_option('mwb_hubwoo_guest_user_cart', $existing_cart_data, false);
 
-			$locale = ! empty( WC()->session->get( 'locale' ) ) ? WC()->session->get( 'locale' ) : '';
+			$locale = ! empty(WC()->session->get('locale')) ? WC()->session->get('locale') : '';
 
-			update_user_meta( $user_id, 'hubwoo_pro_user_left_cart', 'yes' );
-			update_user_meta( $user_id, 'hubwoo_pro_last_addtocart', time() );
-			update_user_meta( $user_id, 'hubwoo_pro_user_cart_sent', 'no' );
-			update_user_meta( $user_id, 'hubwoo_pro_cart_locale', $locale );
+			update_user_meta($user_id, 'hubwoo_pro_left_cart', 'yes');
+			update_user_meta($user_id, 'hubwoo_pro_last_addtocart', time());
+			update_user_meta($user_id, 'hubwoo_pro_user_cart_sent', 'no');
+			update_user_meta($user_id, 'hubwoo_pro_cart_locale', $locale);
 		}
 	}
 
@@ -772,13 +831,14 @@ class Hubwoo_Public {
 	 *
 	 * @since 1.0.0
 	 */
-	public function hubwoo_clear_session() {
+	public function hubwoo_clear_session()
+	{
 
-		if ( null !== WC()->session->get( 'locale' ) ) {
-			WC()->session->set( 'locale', null );
+		if (null !== WC()->session->get('locale')) {
+			WC()->session->set('locale', null);
 		}
-		if ( null !== WC()->session->get( 'mwb_guest_user_email' ) ) {
-			WC()->session->set( 'mwb_guest_user_email', null );
+		if (null !== WC()->session->get('mwb_guest_user_email')) {
+			WC()->session->set('mwb_guest_user_email', null);
 		}
 	}
 
@@ -789,20 +849,21 @@ class Hubwoo_Public {
 	 * @param bool $cart_updated true/false.
 	 * @return bool $cart_updated true/false.
 	 */
-	public function hubwoo_guest_cart_updated( $cart_updated ) {
+	public function hubwoo_guest_cart_updated($cart_updated)
+	{
 
-		if ( is_user_logged_in() ) {
+		if (is_user_logged_in()) {
 
 			$user_id = get_current_user_id();
 			//phpcs:disable
-			$locale  = ! empty( WC()->session->get( 'locale' ) ) ? WC()->session->get( 'locale' ) : '';
+			$locale  = ! empty(WC()->session->get('locale')) ? WC()->session->get('locale') : '';
 			//phpcs:enable
-			if ( ! empty( $user_id ) && $user_id ) {
+			if (! empty($user_id) && $user_id) {
 
-				update_user_meta( $user_id, 'hubwoo_pro_user_left_cart', 'yes' );
-				update_user_meta( $user_id, 'hubwoo_pro_last_addtocart', time() );
-				update_user_meta( $user_id, 'hubwoo_pro_cart_locale', $locale );
-				update_user_meta( $user_id, 'hubwoo_pro_user_cart_sent', 'no' );
+				update_user_meta($user_id, 'hubwoo_pro_user_left_cart', 'yes');
+				update_user_meta($user_id, 'hubwoo_pro_last_addtocart', time());
+				update_user_meta($user_id, 'hubwoo_pro_cart_locale', $locale);
+				update_user_meta($user_id, 'hubwoo_pro_user_cart_sent', 'no');
 			}
 		} else {
 
@@ -816,23 +877,24 @@ class Hubwoo_Public {
 	 *
 	 * @since       1.0.0
 	 */
-	public function hubwoo_abncart_woocommerce_add_to_cart() {
+	public function hubwoo_abncart_woocommerce_add_to_cart()
+	{
 
-		if ( is_user_logged_in() ) {
+		if (is_user_logged_in()) {
 
 			$user_id = get_current_user_id();
 			//phpcs:disable
-			$locale = ! empty( WC()->session->get( 'locale' ) ) ? WC()->session->get( 'locale' ) : '';
+			$locale = ! empty(WC()->session->get('locale')) ? WC()->session->get('locale') : '';
 			//phpcs:enable
-			if ( ! empty( $user_id ) && $user_id ) {
+			if (! empty($user_id) && $user_id) {
 
-				update_user_meta( $user_id, 'hubwoo_pro_user_left_cart', 'yes' );
+				update_user_meta($user_id, 'hubwoo_pro_user_left_cart', 'yes');
 
-				update_user_meta( $user_id, 'hubwoo_pro_last_addtocart', time() );
+				update_user_meta($user_id, 'hubwoo_pro_last_addtocart', time());
 
-				update_user_meta( $user_id, 'hubwoo_pro_cart_locale', $locale );
+				update_user_meta($user_id, 'hubwoo_pro_cart_locale', $locale);
 
-				update_user_meta( $user_id, 'hubwoo_pro_user_cart_sent', 'no' );
+				update_user_meta($user_id, 'hubwoo_pro_user_cart_sent', 'no');
 			}
 		} else {
 
@@ -840,25 +902,224 @@ class Hubwoo_Public {
 		}
 	}
 
+	// =========================================================================
+	// Block-based (Gutenberg) Checkout – Abandoned Cart Support
+	// =========================================================================
+
+	/**
+	 * Detect whether the current page uses the WooCommerce Block checkout.
+	 *
+	 * @since  1.5.0
+	 * @return bool
+	 */
+	private function hubwoo_is_block_checkout()
+	{
+		if (is_checkout() && function_exists('has_block')) {
+			global $post;
+			if (! empty($post) && has_block('woocommerce/checkout', $post)) {
+				return true;
+			}
+		}
+
+		if (function_exists('wc_current_theme_is_fse_theme') && wc_current_theme_is_fse_theme() && is_checkout()) {
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Enqueue the block-checkout abandoned-cart tracking script.
+	 *
+	 * @since 1.5.0
+	 */
+	public function hubwoo_enqueue_block_checkout_scripts()
+	{
+
+		if (is_user_logged_in()) {
+			return;
+		}
+
+		if (! $this->hubwoo_is_block_checkout()) {
+			return;
+		}
+
+		$locale = defined('ICL_LANGUAGE_CODE') ? ICL_LANGUAGE_CODE : get_locale();
+
+		wp_enqueue_script(
+			'hubwoo-block-checkout',
+			plugin_dir_url(__FILE__) . 'js/hubwoo-block-checkout.js',
+			array(),
+			HUBWOO_VERSION,
+			true
+		);
+
+		wp_localize_script(
+			'hubwoo-block-checkout',
+			'hubwooBlockCheckout',
+			array(
+				'ajaxUrl' => admin_url('admin-ajax.php'),
+				'nonce'   => wp_create_nonce('hubwoo_cart_security'),
+				'locale'  => $locale,
+			)
+		);
+	}
+
+	/**
+	 * Handle order placement for block checkout — clears the abandoned cart record.
+	 *
+	 * @since 1.5.0
+	 * @param \WC_Order $order The completed order object from the Store API.
+	 */
+	public function hubwoo_block_checkout_order_placed($order)
+	{
+
+		if (! ($order instanceof WC_Order)) {
+			return;
+		}
+
+		if ('failed' === $order->get_status()) {
+			return;
+		}
+
+		// Normalize case here too -- see hubwoo_abncart_woocommerce_new_orders()
+		// for why (a cart tracked under one case must still match an order
+		// billed under a different case of the same email).
+		$email = strtolower($order->get_billing_email());
+
+		if (empty($email)) {
+			return;
+		}
+
+		$existing_cart_data = get_option('mwb_hubwoo_guest_user_cart', array());
+
+		if (! empty($existing_cart_data)) {
+			$updated = false;
+			foreach ($existing_cart_data as $key => &$single_cart_data) {
+				if (isset($single_cart_data['email']) && strtolower($single_cart_data['email']) === $email) {
+					$single_cart_data['cartData'] = array('cart' => '');
+					$single_cart_data['sent']     = 'no';
+					$updated = true;
+					break;
+				}
+			}
+			unset($single_cart_data);
+			if ($updated) {
+				update_option('mwb_hubwoo_guest_user_cart', $existing_cart_data, false);
+			}
+		}
+	}
+
+	/**
+	 * AJAX handler for block (Gutenberg) checkout abandoned cart capture.
+	 *
+	 * @since 1.5.0
+	 */
+	public function hubwoo_block_checkout_ajax_handler()
+	{
+
+		check_ajax_referer('hubwoo_cart_security', 'nonce');
+
+		// Rate limit per IP -- this endpoint legitimately trusts whatever email
+		// is typed (the same as a real checkout would), so the mitigation here
+		// is capping automated/bulk use rather than changing what's trusted.
+		$rate_limit_ip    = isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])) : '';
+		$rate_limit_key   = 'hubwoo_bcc_rl_' . md5($rate_limit_ip);
+		$rate_limit_count = (int) get_transient($rate_limit_key);
+		if ($rate_limit_count >= 10) {
+			wp_send_json_error(array('message' => 'Too many requests.'));
+			return;
+		}
+		set_transient($rate_limit_key, $rate_limit_count + 1, MINUTE_IN_SECONDS);
+
+		$posted_email = ! empty($_POST['email']) ? sanitize_email(wp_unslash($_POST['email'])) : '';
+		$locale       = ! empty($_POST['locale']) ? sanitize_text_field(wp_unslash($_POST['locale'])) : get_locale();
+
+		if (empty($posted_email)) {
+			wp_send_json_error(array('message' => 'No email provided.'));
+			return;
+		}
+
+		// Force WooCommerce to initialise the session from the cookie (skipped for admin-ajax.php).
+		if (! empty(WC()->session) && is_callable(array(WC()->session, 'init'))) {
+			WC()->session->init();
+		}
+
+		// Try to get the session ID — only available with WC_Session_Handler, not StoreApi\SessionHandler.
+		$session_id = '';
+		if (! empty(WC()->session) && method_exists( WC()->session, 'get_session_cookie' )) {
+			$get_cookie = WC()->session->get_session_cookie();
+			if (! empty($get_cookie)) {
+				$session_id = $get_cookie[0];
+			}
+		}
+
+		// Fall back — derive session ID directly from $_COOKIE.
+		if (empty($session_id)) {
+			$cookie_name = 'wp_woocommerce_session_' . COOKIEHASH;
+			if (! empty($_COOKIE[$cookie_name])) {
+				$cookie_value = sanitize_text_field(wp_unslash($_COOKIE[$cookie_name]));
+				$cookie_parts = explode('||', $cookie_value);
+				if (! empty($cookie_parts[0])) {
+					$session_id = $cookie_parts[0];
+				}
+			}
+		}
+
+		// Final fallback — use a hash of the email as a stable key.
+		if (empty($session_id)) {
+			$session_id = 'email_' . md5($posted_email);
+		}
+
+		$guest_user_cart = array();
+		if (! empty(WC()->session) && ! empty(WC()->session->cart)) {
+			$guest_user_cart['cart'] = WC()->session->cart;
+		} else {
+			$guest_user_cart['cart'] = array();
+		}
+
+		if (! empty(WC()->session)) {
+			WC()->session->set('mwb_guest_user_email', $posted_email);
+		}
+
+		$user_data = array(
+			'email'     => $posted_email,
+			'cartData'  => $guest_user_cart,
+			'timeStamp' => time(),
+			'sessionID' => $session_id,
+			'locale'    => $locale,
+			'sent'      => 'no',
+		);
+
+		self::hubwoo_abncart_update_new_data($posted_email, $user_data, $session_id);
+
+		wp_send_json_success(array('message' => 'Cart captured.', 'session_id' => $session_id));
+	}
+
+	// =========================================================================
+	// End Block-based Checkout Support
+	// =========================================================================
+
 	/**
 	 * Tracking the abandonded cart products.
 	 *
 	 * @since       1.0.4
 	 */
-	public function hubwoo_add_abncart_products() {
-		$product_string = ! empty( $_GET['hubwoo-abncart-retrieve'] ) ? sanitize_text_field( wp_unslash( $_GET['hubwoo-abncart-retrieve'] ) ) : '';
-		if ( ! empty( $product_string ) ) {
-			$seperated_products = explode( ',', $product_string );
-			if ( ! empty( $seperated_products ) ) {
+	public function hubwoo_add_abncart_products()
+	{
+		$product_string = ! empty($_GET['hubwoo-abncart-retrieve']) ? sanitize_text_field(wp_unslash($_GET['hubwoo-abncart-retrieve'])) : '';
+		if (! empty($product_string)) {
+			$seperated_products = explode(',', $product_string);
+			if (! empty($seperated_products)) {
 				global $woocommerce;
 				$woocommerce->cart->empty_cart();
-				foreach ( $seperated_products as $product ) {
+				foreach ($seperated_products as $product) {
 					$pro_qty    = array();
-					$pro_qty    = explode( ':', $product );
-					$pro_qty[1] = ! empty( $pro_qty[1] ) ? $pro_qty[1] : 1;
-					$woocommerce->cart->add_to_cart( $pro_qty[0], $pro_qty[1] );
+					$pro_qty    = explode(':', $product);
+					$pro_qty[1] = ! empty($pro_qty[1]) ? $pro_qty[1] : 1;
+					$woocommerce->cart->add_to_cart($pro_qty[0], $pro_qty[1]);
 				}
-				wp_safe_redirect( wc_get_cart_url(), 301 );
+				wp_safe_redirect(wc_get_cart_url(), 301);
 				exit;
 			}
 		}
@@ -869,28 +1130,28 @@ class Hubwoo_Public {
 	 *
 	 * @since 1.2.2
 	 */
-	public function get_email_checkout_page() {
-		if ( ! is_user_logged_in() ) {
-			?>
+	public function get_email_checkout_page()
+	{
+		if (! is_user_logged_in()) {
+		?>
 			<script type="text/javascript">
-				jQuery( 'input#billing_email' ).on( 'change', function() {
-					var guestuser_email = jQuery( 'input#billing_email' ).val();
-					var ajaxUrl = "<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>";
-					var nonce = "<?php echo esc_html( wp_create_nonce( 'hubwoo_cart_security' ) ); ?>";
-					jQuery.post( ajaxUrl, { 
-							'action' : 'get_order_detail', 
-							'email'  : guestuser_email, 
-							'nonce' : nonce 
-						}, function( response ) {
-							if ( response == '"success"' ) {
-								jQuery('#hubwoo_checkout_marketing_optin').prop('checked', true);
-							} 
-
-							if ( response == '"failure"' ) {
-								jQuery('#hubwoo_checkout_marketing_optin').prop('checked', false);
-							} 
+				jQuery('input#billing_email').on('change', function() {
+					var guestuser_email = jQuery('input#billing_email').val();
+					var ajaxUrl = "<?php echo esc_url(admin_url('admin-ajax.php')); ?>";
+					var nonce = "<?php echo esc_html(wp_create_nonce('hubwoo_cart_security')); ?>";
+					jQuery.post(ajaxUrl, {
+						'action': 'get_order_detail',
+						'email': guestuser_email,
+						'nonce': nonce
+					}, function(response) {
+						if (response == '"success"') {
+							jQuery('#hubwoo_checkout_marketing_optin').prop('checked', true);
 						}
-					);
+
+						if (response == '"failure"') {
+							jQuery('#hubwoo_checkout_marketing_optin').prop('checked', false);
+						}
+					});
 				});
 			</script>
 			<style>
@@ -898,7 +1159,7 @@ class Hubwoo_Public {
 					display: inline-block;
 				}
 			</style>
-			<?php
+<?php
 		}
 	}
 
@@ -908,72 +1169,107 @@ class Hubwoo_Public {
 	 *
 	 * @since 1.2.2
 	 */
-	public function get_order_detail() {
+	public function get_order_detail()
+	{
 
-		check_ajax_referer( 'hubwoo_cart_security', 'nonce' );
+		check_ajax_referer('hubwoo_cart_security', 'nonce');
 
-		if ( ! empty( $_POST['email'] ) ) {
+		// Rate limit per IP -- defense-in-depth on top of the session-scoping
+		// fix below, in case this endpoint is ever hit at volume.
+		$rate_limit_ip    = isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])) : '';
+		$rate_limit_key   = 'hubwoo_ood_rl_' . md5($rate_limit_ip);
+		$rate_limit_count = (int) get_transient($rate_limit_key);
+		if ($rate_limit_count >= 10) {
+			echo wp_json_encode(null);
+			wp_die();
+		}
+		set_transient($rate_limit_key, $rate_limit_count + 1, MINUTE_IN_SECONDS);
 
-			$order_statuses = array_keys( wc_get_order_statuses() );
+		// SECURITY: this endpoint is deliberately kept instant/no-lag (matching
+		// its original real-time behavior) by trusting the posted email
+		// directly, same as before -- a session-scoped version was tried and
+		// reverted, since it raced against WooCommerce's own (independently
+		// debounced) session sync and could miss a genuine returning
+		// customer's own email on the very first checkout-field change. The
+		// rate limit above and the response normalization below are the
+		// actual mitigations here: they cap this endpoint at 10 checks/minute
+		// per IP and collapse "no order" / "order without opt-in" into one
+		// identical response, so bulk/automated probing is throttled and only
+		// the opted-in-customer signal is ever distinguishable -- narrower
+		// and slower than the original bug, without reintroducing the
+		// session-timing regression.
+		$fetched_email = ! empty($_POST['email']) ? sanitize_email(wp_unslash($_POST['email'])) : '';
 
-			$fetched_email  = sanitize_email( wp_unslash( $_POST['email'] ) );
+		$order_statuses = array_keys(Hubwoo::hubwoo_get_valid_order_statuses());
 
-			//hpos changes
-			if( Hubwoo::hubwoo_check_hpos_active() ) {
-				$query = new WC_Order_Query(array(
-					'posts_per_page'      => -1,
+		//hpos changes
+		if (empty($fetched_email) || ! is_email($fetched_email)) {
+			// No (valid) email posted -- nothing to look up. Degrades the
+			// same way an unmatched email always has.
+			$customer_orders = array();
+		} elseif ( Hubwoo::hubwoo_hpos_orders_blocked() ) {
+			// HPOS is primary but the add-on isn't licensed -- don't run
+			// the legacy query below against the wrong table. The
+			// foreach loop below already handles an empty
+			// $customer_orders gracefully (the response just stays
+			// 'failure', which the front-end script treats as "leave the
+			// checkbox as-is"), so this degrades naturally.
+			$customer_orders = array();
+		} elseif (Hubwoo::hubwoo_check_hpos_active()) {
+			$query = new WC_Order_Query(array(
+				'posts_per_page'      => -1,
+				'post_status'         => $order_statuses,
+				'orderby'             => 'id',
+				'order'               => 'desc',
+				'return'              => 'ids',
+				'no_found_rows'       => true,
+				'ignore_sticky_posts' => true,
+				'customer'			  => $fetched_email,
+			));
+
+			$customer_orders = $query->get_orders();
+		} else {
+			$query = new WP_Query();
+
+			$customer_orders = $query->query(
+				array(
+					'post_type'           => 'shop_order',
+					'posts_per_page'      => 1,
 					'post_status'         => $order_statuses,
 					'orderby'             => 'id',
 					'order'               => 'desc',
-					'return'              => 'ids',
+					'fields'              => 'ids',
 					'no_found_rows'       => true,
 					'ignore_sticky_posts' => true,
-					'customer'			  => $fetched_email,
-				));
-
-				$customer_orders = $query->get_orders();
-
-			} else {
-				$query = new WP_Query();
-
-				$customer_orders = $query->query(
-					array(
-						'post_type'           => 'shop_order',
-						'posts_per_page'      => 1,
-						'post_status'         => $order_statuses,
-						'orderby'             => 'id',
-						'order'               => 'desc',
-						'fields'              => 'ids',
-						'no_found_rows'       => true,
-						'ignore_sticky_posts' => true,
-						'meta_query'          => array(
-							array(
-								'key'   => '_billing_email',
-								'value' => $fetched_email,
-							),
+					'meta_query'          => array(
+						array(
+							'key'   => '_billing_email',
+							'value' => $fetched_email,
 						),
-					)
-				);
-			}
+					),
+				)
+			);
+		}
 
-			$value = null;
+		// Normalize "no order" and "order without opt-in" to the same
+		// response -- narrows the one remaining internal signal even though
+		// it's no longer exploitable cross-target now that the lookup above
+		// is scoped to the requester's own session.
+		$value = 'failure';
 
-			foreach ( $customer_orders as $single_order ) {
-				$orders    = wc_get_order( $single_order );
-				$meta_data = $orders->get_meta_data();
-				foreach ( $meta_data as $data ) {
-					$key = $data->key;
-					if ( 'hubwoo_checkout_marketing_optin' == $key ) {
-						$value = 'success';
-						break;
-					} else {
-						$value = 'failure';
-					}
+		foreach ($customer_orders as $single_order) {
+			$orders    = wc_get_order($single_order);
+			$meta_data = $orders->get_meta_data();
+			foreach ($meta_data as $data) {
+				$key = $data->key;
+				if ('hubwoo_checkout_marketing_optin' == $key) {
+					$value = 'success';
+					break;
 				}
 			}
-
-			echo wp_json_encode( $value );
 		}
+
+		echo wp_json_encode($value);
 
 		wp_die();
 	}
@@ -983,17 +1279,17 @@ class Hubwoo_Public {
 	 *
 	 * @since 1.3.2
 	 */
-	public function hubwoo_update_user_prefered_lang( $order_id ) {
-		$current_lang = apply_filters( 'wpml_current_language', null );
+	public function hubwoo_update_user_prefered_lang($order_id)
+	{
+		$current_lang = apply_filters('wpml_current_language', null);
 
-		$order = wc_get_order( $order_id );
+		$order = wc_get_order($order_id);
 		$customer_id = $order->get_customer_id();
 
-		if ( ! empty( $customer_id ) ) {
-			update_user_meta( $customer_id, 'hubwoo_preferred_language', $current_lang );
-
+		if (! empty($customer_id)) {
+			update_user_meta($customer_id, 'hubwoo_preferred_language', $current_lang);
 		} else {
-			Hubwoo::hubwoo_hpos_update_meta_data($order,'hubwoo_preferred_language',$current_lang);
+			Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_preferred_language', $current_lang);
 		}
 	}
 
@@ -1002,14 +1298,15 @@ class Hubwoo_Public {
 	 *
 	 * @since 1.4.1
 	 */
-	public function hubwoo_hide_line_item_meta( $meta_data, $item ) {
-    	$new_meta = array();
-	    foreach ( $meta_data as $id => $meta_array ) {
-	        if ( 'hubwoo_ecomm_line_item_id' === $meta_array->key ) { 
-	        	continue; 
-	        }
-	        $new_meta[ $id ] = $meta_array;
-	    }
-	    return $new_meta;
+	public function hubwoo_hide_line_item_meta($meta_data, $item)
+	{
+		$new_meta = array();
+		foreach ($meta_data as $id => $meta_array) {
+			if ('hubwoo_ecomm_line_item_id' === $meta_array->key) {
+				continue;
+			}
+			$new_meta[$id] = $meta_array;
+		}
+		return $new_meta;
 	}
 }

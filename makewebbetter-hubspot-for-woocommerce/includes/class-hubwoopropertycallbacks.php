@@ -253,22 +253,45 @@ class HubWooPropertyCallbacks {
 				$key = $property_name;
 		}
 
-		if ( 'billing_country' == $key ) {
-			$value = get_user_meta( $this->_contact_id, $key, true );
-			$value = Hubwoo::map_country_by_abbr( $value );
-		} elseif ( 'billing_state' == $key ) {
-			$value = get_user_meta( $this->_contact_id, $key, true );
-			$value = Hubwoo::map_state_by_abbr( $value, get_user_meta( $this->_contact_id, 'billing_country', true ) );
-		} elseif ( 'shipping_country' == $key ) {
-			$value = get_user_meta( $this->_contact_id, $key, true );
-			$value = Hubwoo::map_country_by_abbr( $value );
-		} elseif ( 'shipping_state' == $key ) {
-			$value = get_user_meta( $this->_contact_id, $key, true );
-			$value = Hubwoo::map_state_by_abbr( $value, get_user_meta( $this->_contact_id, 'shipping_country', true ) );
-		} else {
-			$value = get_user_meta( $this->_contact_id, $key, true );
+		$value = $this->hubwoo_get_mapped_user_meta( $key );
+
+		// WooCommerce only auto-copies billing into shipping usermeta during
+		// an actual checkout -- a customer created any other way (manually
+		// in wp-admin, imported, registered without checking out) never gets
+		// shipping_* usermeta populated even though billing_* usually is.
+		// Fall back to the equivalent billing field rather than silently
+		// dropping this property from the sync.
+		if ( empty( $value ) && 0 === strpos( $key, 'shipping_' ) ) {
+			$billing_key = 'billing_' . substr( $key, strlen( 'shipping_' ) );
+			$value       = $this->hubwoo_get_mapped_user_meta( $billing_key );
 		}
+
 		return $value;
+	}
+
+	/**
+	 * Resolves a single WooCommerce billing/shipping usermeta key to its
+	 * value, applying the same country/state abbreviation mapping the
+	 * property callbacks already use.
+	 *
+	 * @param string $key WooCommerce usermeta key, e.g. 'billing_country'.
+	 * @return string
+	 */
+	private function hubwoo_get_mapped_user_meta( $key ) {
+
+		if ( 'billing_country' == $key || 'shipping_country' == $key ) {
+			return Hubwoo::map_country_by_abbr( get_user_meta( $this->_contact_id, $key, true ) );
+		}
+
+		if ( 'billing_state' == $key ) {
+			return Hubwoo::map_state_by_abbr( get_user_meta( $this->_contact_id, $key, true ), get_user_meta( $this->_contact_id, 'billing_country', true ) );
+		}
+
+		if ( 'shipping_state' == $key ) {
+			return Hubwoo::map_state_by_abbr( get_user_meta( $this->_contact_id, $key, true ), get_user_meta( $this->_contact_id, 'shipping_country', true ) );
+		}
+
+		return get_user_meta( $this->_contact_id, $key, true );
 	}
 
 	/**
@@ -284,49 +307,13 @@ class HubWooPropertyCallbacks {
 			return $this->_cache[ $key ];
 		}
 
-		$order_statuses = get_option( 'hubwoo-selected-order-status', array() );
-
-		if ( empty( $order_statuses ) ) {
-
-			$order_statuses = array_keys( wc_get_order_statuses() );
-		}
-
-		//hpos changes
-		if( Hubwoo::hubwoo_check_hpos_active() ) {
-			$query = new WC_Order_Query(array(
-				'posts_per_page'      => -1,
-				'post_status'         => $order_statuses,
-				'orderby'             => 'date',
-				'order'               => 'desc',
-				'return'              => 'ids',
-				'no_found_rows'       => true,
-				'ignore_sticky_posts' => true,
-				'customer_id'	  	  => $this->_contact_id,
-			));
-
-			$customer_orders = $query->get_orders();
-		} else {
-			$query = new WP_Query();
-
-			$customer_orders = $query->query(
-				array(
-					'post_type'           => 'shop_order',
-					'posts_per_page'      => -1,
-					'post_status'         => $order_statuses,
-					'orderby'             => 'date',
-					'order'               => 'desc',
-					'fields'              => 'ids',
-					'no_found_rows'       => true,
-					'ignore_sticky_posts' => true,
-					'meta_query'          => array(
-						array(
-							'key'   => '_customer_user',
-							'value' => $this->_contact_id,
-						),
-					),
-				)
-			);
-		}
+		// Includes this contact's own guest orders (placed with the same
+		// email, before or without an account) alongside orders placed while
+		// logged in -- see Hubwoo::hubwoo_resolve_contact_orders() for the
+		// exact rule. Without this, a registered contact's stats would
+		// silently miss any order placed before they registered.
+		$contact_email   = isset( $this->_user->data->user_email ) ? $this->_user->data->user_email : '';
+		$customer_orders = Hubwoo::hubwoo_resolve_contact_orders( $this->_contact_id, $contact_email );
 
 		$last_order      = ! empty( $customer_orders ) && is_array( $customer_orders ) ? $customer_orders[0] : '';
 		$customer        = new WP_User( $this->_contact_id );
@@ -362,7 +349,7 @@ class HubWooPropertyCallbacks {
 		$last_order_for_html       = 0;
 		$last_order_id             = 0;
 
-		$order_tracking_number = Hubwoo::hubwoo_hpos_get_meta_data( $last_order, '_wc_shipment_tracking_items', true );
+		$order_tracking_number = Hubwoo::hubwoo_hpos_get_meta_data( wc_get_order( $last_order ), '_wc_shipment_tracking_items', true );
 		if ( ! empty( $order_tracking_number ) ) {
 
 			$shipment_data = $order_tracking_number[0];
@@ -380,7 +367,17 @@ class HubWooPropertyCallbacks {
 
 		$contact_preferred_lang = get_user_meta( $this->_contact_id, 'hubwoo_preferred_language', true );
 
-		if ( isset( $contact_preferred_lang ) && ! empty( $contact_preferred_lang ) ) {
+		if ( empty( $contact_preferred_lang ) ) {
+			// hubwoo_preferred_language is only ever written via the
+			// 'wpml_current_language' filter, so on any store without WPML
+			// it's always empty -- fall back to the user's own WordPress
+			// language preference (which itself falls back to the site's
+			// configured locale) rather than dropping this property from
+			// every single contact's sync.
+			$contact_preferred_lang = get_user_locale( $this->_contact_id );
+		}
+
+		if ( ! empty( $contact_preferred_lang ) ) {
 			$this->_cache['hs_language'] = $contact_preferred_lang;
 		}
 
@@ -858,24 +855,21 @@ class HubWooPropertyCallbacks {
 			return $this->_cache[ $key ];
 		}
 
-		$query = new WP_Query();
-
-		$customer_orders = $query->query(
+		// Fetch only the latest subscription for this contact -- Subscription
+		// properties synced to HubSpot always reflect the most recent
+		// subscription only, never a history across multiple subscriptions.
+		// wc_get_orders() is WooCommerce core's own order-query abstraction,
+		// so it reads from whichever store (posts or HPOS tables) is
+		// actually authoritative, unlike the raw WP_Query this replaced.
+		$customer_orders = wc_get_orders(
 			array(
-				'post_type'           => 'shop_subscription',
-				'posts_per_page'      => 1,
-				'post_status'         => 'any',
-				'orderby'             => 'date',
-				'order'               => 'desc',
-				'fields'              => 'ids',
-				'no_found_rows'       => true,
-				'ignore_sticky_posts' => true,
-				'meta_query'          => array(
-					array(
-						'key'   => '_customer_user',
-						'value' => $this->_contact_id,
-					),
-				),
+				'type'     => 'shop_subscription',
+				'customer' => $this->_contact_id,
+				'limit'    => 1,
+				'orderby'  => 'date',
+				'order'    => 'DESC',
+				'status'   => 'any',
+				'return'   => 'ids',
 			)
 		);
 

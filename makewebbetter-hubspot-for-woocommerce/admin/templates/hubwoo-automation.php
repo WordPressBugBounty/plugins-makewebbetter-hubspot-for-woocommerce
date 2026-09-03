@@ -20,8 +20,9 @@ $popup_display          = ( 'yes' == $access_workflow ) ? 'true' : 'false';
 
 <div class="hubwoo-fields-created">
 	<input type="hidden" id="get_workflow_scope" value="<?php echo esc_attr( $popup_display ); ?>">	
-	<div class="hubwoo_pop_up_wrap" style="display: none">
+	<div class="hubwoo_pop_up_wrap hubwoo-pop-up-scoped" style="display: none">
 		<div class="pop_up_sub_wrap">
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=hubwoo&hubwoo_tab=hubwoo-overview' ) ); ?>" class="hubwoo-pop-up-close" aria-label="<?php esc_attr_e( 'Close', 'makewebbetter-hubspot-for-woocommerce' ); ?>"></a>
 			<div class="hubwoo_pop_up_wrap--content">
 				<div class="hubwoo_pop_up_wrap--inner-content">
 					<h2>

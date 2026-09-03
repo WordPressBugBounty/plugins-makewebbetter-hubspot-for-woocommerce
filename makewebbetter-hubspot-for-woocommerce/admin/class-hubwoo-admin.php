@@ -65,8 +65,6 @@ class Hubwoo_Admin
 
 		// add submenu hubspot in woocommerce top menu.
 		add_action('admin_menu', array(&$this, 'add_hubwoo_submenu'));
-		// add filter.
-		add_filter('woocommerce_order_data_store_cpt_get_orders_query', array($this, 'hubwoo_ignore_guest_synced'), 10, 2);
 	}
 
 	/**
@@ -197,44 +195,6 @@ class Hubwoo_Admin
 	}
 
 	/**
-	 * Handle a custom 'hubwoo_pro_guest_order' query var to get orders with the 'hubwoo_pro_guest_order' meta.
-	 *
-	 * @param array $query - Args for WP_Query.
-	 * @param array $query_vars - Query vars from WC_Order_Query.
-	 * @return array modified $query
-	 */
-	public function hubwoo_ignore_guest_synced($query, $query_vars)
-	{
-
-		if (! empty($query_vars['hubwoo_pro_guest_order'])) {
-
-			$query['meta_query'][] = array(
-				'key'     => '_billing_email',
-				'value'   => '',
-				'compare' => 'NOT IN',
-			);
-
-			$query['meta_query'] = array(
-				array(
-					'relation' => 'AND',
-					array(
-						'key'     => 'hubwoo_pro_guest_order',
-						'value'   => esc_attr($query_vars['hubwoo_pro_guest_order']),
-						'compare' => 'NOT EXISTS',
-					),
-					array(
-						'key'     => '_customer_user',
-						'value'   => 0,
-						'compare' => '=',
-					),
-				),
-			);
-		}
-
-		return $query;
-	}
-
-	/**
 	 * Generating access token.
 	 *
 	 * @since    1.0.0
@@ -243,6 +203,37 @@ class Hubwoo_Admin
 	{
 
 		if (isset($_GET['code'])) {
+
+			// TEMPORARY DIAGNOSTIC -- no effect on behavior below, safe to
+			// remove once we've seen what a real connection attempt actually
+			// sends. This OAuth callback is only ever reached via a redirect
+			// from the external auth.makewebbetter.com proxy (not directly
+			// from HubSpot), and it's not currently known whether that proxy
+			// forwards 'state' as a literal parameter, or forwards the
+			// 'mwb_nonce' this plugin actually embeds in the value it sent as
+			// 'state' to HubSpot (that value is never verified anywhere in
+			// this codebase otherwise) -- fixing the nonce-check gap flagged
+			// in the security audit needs to be grounded in what really
+			// arrives here, not a guess, since a wrong guess risks breaking
+			// the connection flow entirely. Logged via the plugin's own
+			// existing Sync Logs mechanism so it shows up in a screen already
+			// in place, already properly access-controlled.
+			$hubwoo_oauth_diagnostic_params = array();
+			foreach ($_GET as $hubwoo_oauth_diag_key => $hubwoo_oauth_diag_value) {
+				$hubwoo_oauth_diagnostic_params[sanitize_key($hubwoo_oauth_diag_key)] = is_scalar($hubwoo_oauth_diag_value)
+					? sanitize_text_field(wp_unslash($hubwoo_oauth_diag_value))
+					: '(non-scalar value)';
+			}
+			HubWooConnectionMananager::get_instance()->create_log(
+				'OAuth callback diagnostic -- parameters actually received (temporary, safe to remove)',
+				'hubwoo_redirect_from_hubspot',
+				array(
+					'status_code' => 0,
+					'response'    => 'diagnostic',
+					'body'        => wp_json_encode($hubwoo_oauth_diagnostic_params),
+				),
+				'oauth_diagnostic'
+			);
 
 			if (isset($_GET['mwb_source']) && $_GET['mwb_source'] == 'hubspot') {
 				if (! isset($_GET['state']) || ! wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['state'])), 'hubwoo_security')) {
@@ -254,35 +245,82 @@ class Hubwoo_Admin
 			$hseckey = HUBWOO_SECRET_ID;
 
 			if ($hapikey && $hseckey) {
-				if (! Hubwoo::is_valid_client_ids_stored()) {
 
-					if (HubWooConnectionMananager::get_instance()->hubwoo_fetch_access_token_from_code($hapikey, $hseckey) == true) {
-						$hubwoo_connection_complete = 'yes';
-						update_option('hubwoo_static_redirect', 'yes');
-					} else {
-						$hubwoo_connection_complete = 'no';
-					}
+				if (HubWooConnectionMananager::get_instance()->hubwoo_fetch_access_token_from_code($hapikey, $hseckey) == true) {
+					$hubwoo_connection_complete = 'yes';
+					update_option('hubwoo_static_redirect', 'yes', false);
+				} else {
+					$hubwoo_connection_complete = 'no';
+				}
 
-					global $hubwoo;
-					$hubwoo->hubwoo_owners_email_info();
-					if ('yes' == $hubwoo_connection_complete) {
-						update_option('hubwoo_connection_complete', 'yes');
-						delete_option('hubwoo_connection_issue');
-						wp_safe_redirect(admin_url() . 'admin.php?page=hubwoo&hubwoo_tab=hubwoo-overview&hubwoo_key=grp-pr-setup');
-					} else {
-						update_option('hubwoo_connection_complete', 'no');
-						update_option('hubwoo_connection_issue', 'yes');
-						wp_safe_redirect(admin_url() . 'admin.php?page=hubwoo&hubwoo_tab=hubwoo-overview&hubwoo_key=connection-setup');
-					}
+				global $hubwoo;
+				$hubwoo->hubwoo_owners_email_info();
+				if ('yes' == $hubwoo_connection_complete) {
+					update_option('hubwoo_connection_complete', 'yes', false);
+					delete_option('hubwoo_connection_issue');
+					wp_safe_redirect(admin_url() . 'admin.php?page=hubwoo&hubwoo_tab=hubwoo-overview&hubwoo_key=grp-pr-setup');
+					exit;
+				} else {
+					update_option('hubwoo_connection_complete', 'no', false);
+					update_option('hubwoo_connection_issue', 'yes', false);
+					wp_safe_redirect(admin_url() . 'admin.php?page=hubwoo&hubwoo_tab=hubwoo-overview&hubwoo_key=connection-setup');
+					exit;
 				}
 			}
 		} elseif (! empty($_GET['hubwoo_download'])) {
+			// admin_init fires on every wp-admin page load for any logged-in
+			// user, regardless of role -- this branch streams the full sync
+			// log (customer/order/deal API payloads, store-wide), so it needs
+			// its own explicit checks rather than relying on which admin page
+			// happens to link to it.
+			if (! current_user_can('manage_woocommerce')) {
+				wp_die();
+			}
+			if (! isset($_GET['_wpnonce']) || ! wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['_wpnonce'])), 'hubwoo_download_log')) {
+				wp_die();
+			}
 
-			// Download log file.
-			$filename = WC_LOG_DIR . Hubwoo::get_current_crm_name('slug') . '-sync-log.log';
+			// Download log file dynamically without timeouts.
+			if ( function_exists( 'set_time_limit' ) ) {
+				set_time_limit( 0 );
+			}
+
+			$crm_name = Hubwoo::get_current_crm_name('slug');
+			$date_suffix = gmdate('Y-m-d_H-i');
+			$filename = $crm_name . '-sync-log-' . $date_suffix . '.log';
+			
 			header('Content-type: text/plain');
 			header('Content-Disposition: attachment; filename="' . basename($filename) . '"');
-			readfile($filename); //phpcs:ignore
+			
+			// Flush headers so download starts immediately in the browser
+			if ( ob_get_level() ) { 
+				ob_end_clean(); 
+			}
+			flush();
+
+			$chunk_size = 500;
+			$offset = 0;
+			$search_value = isset( $_GET['search'] ) ? sanitize_text_field( wp_unslash( $_GET['search'] ) ) : false;
+
+			do {
+				$log_data = Hubwoo::hubwoo_get_log_data( $search_value, $chunk_size, $offset );
+
+				foreach ( $log_data as $key => $value ) {
+					$value[ $crm_name . '_id' ] = ! empty( $value[ $crm_name . '_id' ] ) ? $value[ $crm_name . '_id' ] : '-';
+					$log                        = 'Feed : ' . $value['event'] . PHP_EOL;
+					$log                       .= ucwords( $crm_name ) . ' Object : ' . $value[ $crm_name . '_object' ] . PHP_EOL;
+					$log                       .= 'Time : ' . gmdate( 'd-m-Y h:i A', esc_html( $value['time'] ) ) . PHP_EOL;
+					$log                       .= 'Request : ' . $value['request'] . PHP_EOL; // phpcs:ignore
+					$log                       .= 'Response : ' . wp_json_encode( maybe_unserialize( $value['response'] ) ) . PHP_EOL;  // phpcs:ignore
+					$log                       .= '-----------------------------------------------------------------------' . PHP_EOL;
+					
+					echo $log;
+				}
+				
+				flush(); // Push the chunk to the browser to keep connection alive
+				$offset += $chunk_size;
+			} while ( count( $log_data ) === $chunk_size );
+
 			exit;
 		}
 	}
@@ -855,6 +893,10 @@ class Hubwoo_Admin
 		if (! empty($order_id)) {
 			$order = wc_get_order($order_id);
 
+			if ( $order instanceof WC_Order && 'checkout-draft' === $order->get_status() && 'store-api' === $order->get_created_via() ) {
+				return;
+			}
+
 			$user_id = (int) $order->get_customer_id();
 
 			if (0 !== $user_id && 0 < $user_id) {
@@ -868,15 +910,21 @@ class Hubwoo_Admin
 				return;
 			}
 
-			$post_type = get_post_type($order_id);
-			if ('shop_subscription' == $post_type) {
+			if ('shop_subscription' == $order->get_type()) {
 				return;
 			}
 
-			if ('yes' == get_option('woocommerce_custom_orders_table_data_sync_enabled', 'no') && 'yes' == get_option('woocommerce_custom_orders_table_enabled', 'no')) {
-				return;
-			}
-
+			// A previous version bailed out here whenever HPOS was primary AND
+			// "Enable compatibility mode" was on -- that combination is WooCommerce's
+			// own recommended post-migration configuration, so this silently stopped
+			// every order status change from ever flagging the order for HubSpot
+			// deal sync, for any store in that state (licensed or not). Removed: the
+			// upsert_meta re-entrancy check a few lines above already prevents this
+			// from firing twice for the same pending order, and
+			// hubwoo_hpos_update_meta_data() below already writes to whichever store
+			// is actually primary (Hubwoo::hubwoo_is_hpos_enabled()) regardless of
+			// compatibility mode -- there was nothing left for this check to protect
+			// against.
 			Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_ecomm_deal_upsert', 'yes');
 
 			HubWoo_Schedulers::get_instance()->hubwoo_trigger_heartbeat();
@@ -929,18 +977,43 @@ class Hubwoo_Admin
 	}
 
 	/**
-	 * Realtime sync for HubSpot CRM.
+	 * Cheap peek to see if there is any unsynced guest abandoned-cart entry
+	 * waiting to be sent, without doing the full batch sync work.
 	 *
-	 * @since 1.0.0
+	 * @return bool
 	 */
-	public function hubwoo_cron_schedule()
+	private static function hubwoo_guest_abncart_pending_exists()
+	{
+		$hubwoo_guest_cart_data = get_option('mwb_hubwoo_guest_user_cart', array());
+		if (empty($hubwoo_guest_cart_data)) {
+			return false;
+		}
+
+		foreach ($hubwoo_guest_cart_data as $entry) {
+			if (isset($entry['sent']) && 'no' === $entry['sent']) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Cheap peek to see if any contact (registered user or guest order) or
+	 * abandoned cart entry is waiting to be synced, without doing the full
+	 * sync work.
+	 *
+	 * @return bool
+	 */
+	private static function hubwoo_contacts_pending_exists()
 	{
 		if ('yes' != get_option('hubwoo_greeting_displayed_setup', 'no')) {
-			return;
+			return false;
 		}
 		if (! function_exists('wc_get_order')) {
-			return;
+			return false;
 		}
+
 		$args = array(
 			'meta_query' => array(
 				'relation' => 'AND',
@@ -955,33 +1028,35 @@ class Hubwoo_Admin
 				),
 			),
 			'role__in' => get_option('hubwoo-selected-user-roles', array()),
-			'number' => 5,
-			'fields' => 'ID',
+			'number'   => 1,
+			'fields'   => 'ID',
 		);
-		$hubwoo_updated_user = get_users($args);
-		$hubwoo_unique_users = apply_filters('hubwoo_users', $hubwoo_updated_user);
-		if (! empty($hubwoo_unique_users)) {
-			$hubwoo_unique_users = array_unique($hubwoo_unique_users);
-			$hubwoo_unique_users = array_slice($hubwoo_unique_users, -10);
-			$batch_id = bin2hex(random_bytes(16));
-			update_option('hubwoo_batch_users_to_sync_' . $batch_id, $hubwoo_unique_users);
-			if (! as_has_scheduled_action('hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'reg'))) {
-				as_enqueue_async_action('hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'reg',  'batch_id' => $batch_id));
-			}
+
+		if (! empty(get_users($args))) {
+			return true;
 		}
 
-		//hpos changes
+		// HPOS is primary but the add-on isn't licensed -- everything below
+		// this point is the guest-order half of the check, which needs a real
+		// order query; the registered-user check above already ran and isn't
+		// order-related, so it's unaffected.
+		if (Hubwoo::hubwoo_hpos_orders_blocked()) {
+			return false;
+		}
+
+		$guest_contact_sync_statuses = array_keys(Hubwoo::hubwoo_get_valid_order_statuses());
+
 		if (Hubwoo::hubwoo_check_hpos_active()) {
 			$query = new WC_Order_Query(array(
-				'posts_per_page'      => 5,
-				'post_status'         => array_keys(wc_get_order_statuses()),
+				'posts_per_page'      => 1,
+				'post_status'         => $guest_contact_sync_statuses,
 				'orderby'             => 'date',
 				'order'               => 'desc',
 				'return'              => 'ids',
 				'no_found_rows'       => true,
 				'ignore_sticky_posts' => true,
 				'post_parent'         => 0,
-				'customer_id'  		  => 0,
+				'customer_id'         => 0,
 				'meta_query'          => array(
 					'relation' => 'AND',
 					array(
@@ -993,7 +1068,7 @@ class Hubwoo_Admin
 						'key'     => 'hubwoo_invalid_contact',
 						'compare' => 'NOT EXISTS',
 					),
-				)
+				),
 			));
 
 			$hubwoo_orders = $query->get_orders();
@@ -1003,7 +1078,7 @@ class Hubwoo_Admin
 			$hubwoo_orders = $query->query(
 				array(
 					'post_type'           => 'shop_order',
-					'posts_per_page'      => 5,
+					'posts_per_page'      => 1,
 					'post_status'         => 'any',
 					'orderby'             => 'date',
 					'order'               => 'desc',
@@ -1030,17 +1105,179 @@ class Hubwoo_Admin
 				)
 			);
 		}
+
 		$hubwoo_orders = apply_filters('hubwoo_guest_orders', $hubwoo_orders);
 
 		if (! empty($hubwoo_orders)) {
-			$batch_id = bin2hex(random_bytes(16));
-			update_option('hubwoo_batch_users_to_sync_' . $batch_id, $hubwoo_orders);
-			if (! as_has_scheduled_action('hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'guest'))) {
+			return true;
+		}
+
+		return self::hubwoo_guest_abncart_pending_exists();
+	}
+
+	/**
+	 * Whether a hubwoo_contacts_batch_sync job of this exact sync_type/user_type
+	 * is still pending. as_has_scheduled_action() can only do an exact match on
+	 * the full args array, and the real jobs always carry a third 'batch_id' key
+	 * (a fresh random value every time) alongside sync_type/user_type -- so a
+	 * 2-key lookup against it can never match a real 3-key job. This inspects
+	 * each pending job's actual args directly instead, ignoring batch_id on
+	 * purpose since any pending batch of the same sync_type/user_type is
+	 * equivalent for throttling purposes, regardless of which specific batch it is.
+	 *
+	 * @param string $sync_type 'real' or 'historical'.
+	 * @param string $user_type 'reg' or 'guest'.
+	 * @return bool
+	 */
+	private function hubwoo_contacts_batch_pending($sync_type, $user_type)
+	{
+		$pending_actions = as_get_scheduled_actions(
+			array(
+				'hook'     => 'hubwoo_contacts_batch_sync',
+				'status'   => 'pending',
+				'per_page' => -1,
+			)
+		);
+
+		foreach ($pending_actions as $pending_action) {
+			$action_args = $pending_action->get_args();
+			if (
+				isset($action_args['sync_type'], $action_args['user_type'])
+				&& $sync_type === $action_args['sync_type']
+				&& $user_type === $action_args['user_type']
+			) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Realtime sync for HubSpot CRM.
+	 *
+	 * @since 1.0.0
+	 */
+	public function hubwoo_cron_schedule()
+	{
+		if ('yes' != get_option('hubwoo_greeting_displayed_setup', 'no')) {
+			return;
+		}
+		if (! function_exists('wc_get_order')) {
+			return;
+		}
+		if (! $this->hubwoo_contacts_batch_pending('real', 'reg')) {
+			$args = array(
+				'meta_query' => array(
+					'relation' => 'AND',
+					array(
+						'key'     => 'hubwoo_pro_user_data_change',
+						'value'   => 'yes',
+						'compare' => '==',
+					),
+					array(
+						'key'     => 'hubwoo_invalid_contact',
+						'compare' => 'NOT EXISTS',
+					),
+				),
+				'role__in' => get_option('hubwoo-selected-user-roles', array()),
+				'number' => 5,
+				'fields' => 'ID',
+			);
+			$hubwoo_updated_user = get_users($args);
+			$hubwoo_unique_users = apply_filters('hubwoo_users', $hubwoo_updated_user);
+			if (! empty($hubwoo_unique_users)) {
+				$hubwoo_unique_users = array_unique($hubwoo_unique_users);
+				$hubwoo_unique_users = array_slice($hubwoo_unique_users, -10);
+				$batch_id = bin2hex(random_bytes(16));
+				update_option('hubwoo_batch_users_to_sync_' . $batch_id, $hubwoo_unique_users, false);
+				as_enqueue_async_action('hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'reg',  'batch_id' => $batch_id));
+			}
+		}
+
+		//hpos changes
+		// Guest orders are only worth selecting at all if guest-user syncing is
+		// actually enabled -- historical sync already gates this the same way
+		// (see HubwooDataSync::hubwoo_get_all_unique_user()). Without this check,
+		// hubwoo_pro_guest_order='yes' orders would get selected here regardless
+		// of the setting, then silently dropped inside get_guest_sync_data_v3()
+		// (which does respect it), and since nothing marks them as handled when
+		// they're dropped, they'd get re-selected on every tick forever.
+		// The registered-user block above is user-meta based, not order-based,
+		// so it isn't gated -- only this guest-order half needs a real order
+		// query, and HPOS-primary-but-not-licensed means no order query runs
+		// at all.
+		if (in_array('guest_user', get_option('hubwoo-selected-user-roles', array())) && ! Hubwoo::hubwoo_hpos_orders_blocked() && ! $this->hubwoo_contacts_batch_pending('real', 'guest')) {
+			$guest_contact_sync_statuses = array_keys( Hubwoo::hubwoo_get_valid_order_statuses() );
+			if (Hubwoo::hubwoo_check_hpos_active()) {
+				$query = new WC_Order_Query(array(
+					'posts_per_page'      => 5,
+					'post_status'         => $guest_contact_sync_statuses,
+					'orderby'             => 'date',
+					'order'               => 'desc',
+					'return'              => 'ids',
+					'no_found_rows'       => true,
+					'ignore_sticky_posts' => true,
+					'post_parent'         => 0,
+					'customer_id'  		  => 0,
+					'meta_query'          => array(
+						'relation' => 'AND',
+						array(
+							'key'     => 'hubwoo_pro_guest_order',
+							'compare' => '==',
+							'value'   => 'yes',
+						),
+						array(
+							'key'     => 'hubwoo_invalid_contact',
+							'compare' => 'NOT EXISTS',
+						),
+					)
+				));
+
+				$hubwoo_orders = $query->get_orders();
+			} else {
+				$query = new WP_Query();
+
+				$hubwoo_orders = $query->query(
+					array(
+						'post_type'           => 'shop_order',
+						'posts_per_page'      => 5,
+						'post_status'         => 'any',
+						'orderby'             => 'date',
+						'order'               => 'desc',
+						'fields'              => 'ids',
+						'no_found_rows'       => true,
+						'ignore_sticky_posts' => true,
+						'meta_query'          => array(
+							'relation' => 'AND',
+							array(
+								'key'     => 'hubwoo_pro_guest_order',
+								'compare' => '==',
+								'value'   => 'yes',
+							),
+							array(
+								'key'     => 'hubwoo_invalid_contact',
+								'compare' => 'NOT EXISTS',
+							),
+							array(
+								'key'     => '_customer_user',
+								'value'   => 0,
+								'compare' => '==',
+							),
+						),
+					)
+				);
+			}
+			$hubwoo_orders = apply_filters('hubwoo_guest_orders', $hubwoo_orders);
+
+			if (! empty($hubwoo_orders)) {
+				$batch_id = bin2hex(random_bytes(16));
+				update_option('hubwoo_batch_users_to_sync_' . $batch_id, $hubwoo_orders, false);
 				as_enqueue_async_action('hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'guest',  'batch_id' => $batch_id));
 			}
 		}
 
-		if (! as_has_scheduled_action('hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'guest_abncart'))) {
+		if (self::hubwoo_guest_abncart_pending_exists() && ! as_has_scheduled_action('hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'guest_abncart'))) {
 			as_enqueue_async_action('hubwoo_contacts_batch_sync', array('sync_type' => 'real', 'user_type' => 'guest_abncart'));
 		}
 	}
@@ -1070,8 +1307,20 @@ class Hubwoo_Admin
 					if (!empty($batch_contacts_data)) {
 						foreach ($users_to_sync as $order_id) {
 							$order = wc_get_order($order_id);
+							if (!($order instanceof WC_Order)) {
+								continue;
+							}
+							if ($order->get_status() === 'checkout-draft' && $order->get_created_via() === 'store-api') {
+								continue;
+							}
 							$billing_email = $order->get_billing_email();
-							$order_email_id_map[$billing_email] = $order_id;
+							// HubSpot matches/dedupes contacts by email case-insensitively --
+							// if this email was already synced under a different case (e.g.
+							// an earlier guest order typed it differently), HubSpot's response
+							// echoes back its existing stored case, not this order's. Normalize
+							// the key so the lookup in hubwoo_marked_users_sync() still finds
+							// it regardless of case.
+							$order_email_id_map[strtolower($billing_email)] = $order_id;
 						}
 					}
 				} catch (Throwable $e) {
@@ -1097,11 +1346,37 @@ class Hubwoo_Admin
 							$unsynced_cart_email = $unsynced_cart['email'];
 							$unsynced_cart_key = '';
 							$unsynced_cart_key = array_search($unsynced_cart_email, array_column($hubwoo_guest_cart_data, 'email'));
-							if (empty($unsynced_cart['cartData']) || empty($unsynced_cart['cartData']['cart'])) {
+
+							// This cart was captured client-side purely by email, so it
+							// carries no WP role information -- it may belong to a
+							// registered user (their account email pre-fills the billing
+							// field) just as easily as a true guest. Resolve that here,
+							// before this entry is synced, so real-time role selection is
+							// honored the same way it already is for the reg/guest paths.
+							$roles_to_check_for_cart = get_option('hubwoo-selected-user-roles', array());
+							$existing_user_for_cart  = get_user_by('email', $unsynced_cart_email);
+							if ($existing_user_for_cart instanceof WP_User) {
+								if (empty(array_intersect($existing_user_for_cart->roles, $roles_to_check_for_cart))) {
+									$hubwoo_guest_cart_data[$unsynced_cart_key]['sent'] = 'yes';
+									continue;
+								}
+							} elseif (! in_array('guest_user', $roles_to_check_for_cart)) {
 								$hubwoo_guest_cart_data[$unsynced_cart_key]['sent'] = 'yes';
 								continue;
 							}
 
+							// Deliberately NOT bailing out here when the cart is empty --
+							// an empty cart at this point (sent='no' but no items) means
+							// a real order was just placed and the cart was cleared (see
+							// hubwoo_abncart_woocommerce_new_orders() /
+							// hubwoo_block_checkout_order_placed()), not "nothing to
+							// sync". hubwoo_abncart_process_guest_data() below correctly
+							// computes a "no abandoned cart" property set (zeroed
+							// counters/totals) from its own independent lookup of this
+							// same email regardless of what $unsynced_cart looks like --
+							// skipping it here was preventing that cleared state from
+							// ever reaching HubSpot, leaving stale abandoned-cart data on
+							// the contact even after they'd already ordered.
 							$guest_user_properties = apply_filters('hubwoo_pro_track_guest_cart', $unsynced_cart_email, array());
 
 							if (Hubwoo_Admin::hubwoo_check_for_cart($guest_user_properties)) {
@@ -1130,7 +1405,7 @@ class Hubwoo_Admin
 					}
 				}
 
-				update_option("mwb_hubwoo_guest_user_cart", $hubwoo_guest_cart_data);
+				update_option("mwb_hubwoo_guest_user_cart", $hubwoo_guest_cart_data, false);
 			}
 		}
 
@@ -1152,6 +1427,16 @@ class Hubwoo_Admin
 					$response_body = json_decode($response['body'], true);
 					$results = $response_body['results'];
 					self::hubwoo_marked_users_sync($results, $user_type, $order_email_id_map);
+
+					// Historical background sync drives the Contacts-tab / dashboard-wide
+					// progress bar off this counter (see hubwoo_sync_status_tracker()).
+					// Real-time batches never set hubwoo_background_process_running, so
+					// this is a no-op for them.
+					if ('historical' === $sync_type && get_option('hubwoo_background_process_running', false)) {
+						$hsocssynced = get_option('hubwoo_ocs_contacts_synced', 0);
+						$hsocssynced += count($results);
+						update_option('hubwoo_ocs_contacts_synced', $hsocssynced, false);
+					}
 				} else {
 					self::hubwoo_handle_batch_response($response, $batch_contacts_data, $user_type, $order_email_id_map);
 				}
@@ -1161,7 +1446,7 @@ class Hubwoo_Admin
 		if (!empty($batch_id)) {
 			delete_option('hubwoo_batch_users_to_sync_' . $batch_id);
 		}
-		update_option('hubwoo_last_sync_date', time());
+		update_option('hubwoo_last_sync_date', time(), false);
 	}
 
 	public function hubwoo_marked_users_sync($response_data, $user_type, $order_email_id_map = array())
@@ -1184,13 +1469,20 @@ class Hubwoo_Admin
 			else if ($user_type == 'guest') {
 				foreach ($response_data as $synced_contact) {
 					if (isset($synced_contact['properties']['email']) && !empty($synced_contact['properties']['email'])) {
-						if (isset($order_email_id_map[$synced_contact['properties']['email']])) {
-							$order_id = $order_email_id_map[$synced_contact['properties']['email']];
+						// $order_email_id_map is keyed by lowercased email (see where it's
+						// built in hubwoo_contacts_batch_sync()) -- HubSpot's response can
+						// come back in a different case than this order's own billing email
+						// if the same address was already synced under a different case.
+						$synced_contact_email = strtolower($synced_contact['properties']['email']);
+						if (isset($order_email_id_map[$synced_contact_email])) {
+							$order_id = $order_email_id_map[$synced_contact_email];
 							$order = wc_get_order($order_id);
-							Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_user_vid', $synced_contact['id']);
-							Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_pro_guest_order', 'synced');
-						} 
-						
+							if ($order instanceof WC_Order) {
+								Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_user_vid', $synced_contact['id']);
+								Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_pro_guest_order', 'synced');
+							}
+						}
+
 					}
 				}
 			}
@@ -1200,18 +1492,37 @@ class Hubwoo_Admin
 	public function hubwoo_handle_batch_response($response, $batch_contacts_data, $user_type, $order_email_id_map = array())
 	{
 		if (is_array($response) && !empty($response)) {
-			$response_body = json_decode($response['body'], true);
+			$status_code = isset($response['status_code']) ? (int) $response['status_code'] : 0;
+			if ($status_code === 429 || $status_code >= 500) {
+				return;
+			}
+
 			$batch_contacts_data = $batch_contacts_data['inputs'];
+			$retry_count = 0;
+			$max_retries = 3;
+
 			foreach ($batch_contacts_data as $unsynced_contact_data) {
+				if ($retry_count >= $max_retries) {
+					break;
+				}
 				$unsynced_user_id = '';
 				$unsynced_guest_user_order = NULL;
 				$unsynced_user_email = $unsynced_contact_data['id'];
 				$unsynced_contact_properties = $unsynced_contact_data['properties'];
 				if ($user_type == 'reg') {
 					$unsynced_user = get_user_by('email', $unsynced_user_email);
+					if (!$unsynced_user) {
+						continue;
+					}
 					$unsynced_user_id = $unsynced_user->ID;
 				} else if ($user_type == 'guest') {
-					$unsynced_guest_user_order_id = $order_email_id_map[$unsynced_user_email];
+					// $order_email_id_map is keyed by lowercased email -- normalize here
+					// too, defensively, for the same reason as hubwoo_marked_users_sync().
+					$unsynced_user_email_key = strtolower($unsynced_user_email);
+					if (!isset($order_email_id_map[$unsynced_user_email_key])) {
+						continue;
+					}
+					$unsynced_guest_user_order_id = $order_email_id_map[$unsynced_user_email_key];
 					if (!empty($unsynced_guest_user_order_id)) {
 						$unsynced_guest_user_order = wc_get_order($unsynced_guest_user_order_id);
 					}
@@ -1219,6 +1530,7 @@ class Hubwoo_Admin
 
 				if (count($unsynced_contact_properties) && (($user_type == 'reg' && !empty($unsynced_user_id)) || ($user_type == 'guest' && ($unsynced_guest_user_order instanceof WC_Order)) || $user_type == 'guest_abncart')) {
 					HubwooObjectProperties::hubwoo_create_update_single_contact($unsynced_contact_properties, $unsynced_user_email, $user_type, $unsynced_user_id, $unsynced_guest_user_order);
+					$retry_count++;
 				}
 			}
 		}
@@ -1257,73 +1569,33 @@ class Hubwoo_Admin
 	}
 
 	/**
-	 * Split contact batch on failure.
-	 *
-	 * @since    1.0.0
-	 * @param    array $contacts array of contacts for batch upload.
-	 */
-	public static function hubwoo_split_contact_batch($contacts)
-	{
-
-		$contacts_chunk = array_chunk($contacts, ceil(count($contacts) / 2));
-
-		$response_chunk = array();
-
-		if (isset($contacts_chunk[0])) {
-
-			$response_chunk = HubWooConnectionMananager::get_instance()->create_or_update_contacts($contacts_chunk[0]);
-			if (isset($response_chunk['status_code']) && 400 == $response_chunk['status_code']) {
-
-				$response_chunk = self::hubwoo_single_contact_upload($contacts_chunk[0]);
-			}
-		}
-		if (isset($contacts_chunk[1])) {
-
-			$response_chunk = HubWooConnectionMananager::get_instance()->create_or_update_contacts($contacts_chunk[1]);
-			if (isset($response_chunk['status_code']) && 400 == $response_chunk['status_code']) {
-
-				$response_chunk = self::hubwoo_single_contact_upload($contacts_chunk[1]);
-			}
-		}
-
-		return $response_chunk;
-	}
-
-	/**
-	 * Fallback for single contact.
-	 *
-	 * @since    1.0.0
-	 * @param    array $contacts array of contacts for batch upload.
-	 */
-	public static function hubwoo_single_contact_upload($contacts)
-	{
-
-		if (! empty($contacts)) {
-
-			foreach ($contacts as $single_contact) {
-
-				$response = HubWooConnectionMananager::get_instance()->create_or_update_contacts(array($single_contact));
-			}
-		}
-
-		return $response;
-	}
-
-
-	/**
 	 * Populating Orders column that has been synced as deal.
 	 *
 	 * @since    1.0.0
-	 * @param    array $column    Array of available columns.
-	 * @param    int   $post_id   Current Order post id.
+	 * @param    string          $column             Column being rendered.
+	 * @param    int|WC_Order    $post_id_or_order    Legacy screen passes a post ID; HPOS Orders screen passes a WC_Order object.
 	 */
-	public function hubwoo_order_cols_value($column, $post_id)
+	public function hubwoo_order_cols_value($column, $post_id_or_order)
 	{
 
-		$deal_id   = get_post_meta($post_id, 'hubwoo_ecomm_deal_id', true);
+		// Registered against both the legacy shop_order list table
+		// (manage_shop_order_posts_custom_column, passes a plain post ID) and the
+		// HPOS Orders screen (manage_woocommerce_page_wc-orders_custom_column,
+		// passes a WC_Order object -- confirmed against WooCommerce core) --
+		// normalize to a WC_Order either way so every meta read below can go
+		// through the HPOS-aware helper instead of raw get_post_meta(), which
+		// only ever reads wp_postmeta and silently misses anything actually
+		// stored in the HPOS orders-meta table.
+		$order = ( $post_id_or_order instanceof WC_Order ) ? $post_id_or_order : wc_get_order( $post_id_or_order );
+
+		if ( ! $order instanceof WC_Order ) {
+			return;
+		}
+
+		$deal_id   = Hubwoo::hubwoo_hpos_get_meta_data( $order, 'hubwoo_ecomm_deal_id', true );
 		$portal_id = get_option('hubwoo_pro_hubspot_id', '');
-		$user_id   = get_post_meta($post_id, '_customer_user', true);
-		$user_vid  = $user_id > 0 ? get_user_meta($user_id, 'hubwoo_user_vid', true) : get_post_meta($post_id, 'hubwoo_user_vid', true);
+		$user_id   = (int) $order->get_customer_id();
+		$user_vid  = $user_id > 0 ? get_user_meta($user_id, 'hubwoo_user_vid', true) : Hubwoo::hubwoo_hpos_get_meta_data( $order, 'hubwoo_user_vid', true );
 
 		if (get_option('hubwoo_background_process_running', false) || get_option('hubwoo_contact_vid_update', 0)) {
 			$contact_tip    = 'Contacts are being synced';
@@ -1560,15 +1832,33 @@ class Hubwoo_Admin
 					$post_name          = isset($post->post_name) ? $post->post_name : '';
 					$product_name       = $post_name . '-' . $item_id;
 					$in_cart_products[] = $product_name;
-					$abncart_properties['abandoned_cart_counter']++;
+					// Count actual quantity, not one per line item, so this
+					// matches the guest-path definition of this same property
+					// (a single product added with qty 2 must report 2, not 1).
+					$abncart_properties['abandoned_cart_counter'] += $qty;
 					if (array_key_exists('line_total', $single_cart_item)) {
 						$abncart_properties['abandoned_cart_subtotal'] += $single_cart_item['line_total'];
+						$abncart_properties['abandoned_cart_tax_value'] += isset($single_cart_item['line_tax']) ? $single_cart_item['line_tax'] : 0;
 					} else {
+						// A just-added item's persistent-cart snapshot is saved
+						// before WC_Cart::calculate_totals() runs
+						// (persistent_cart_update() is hooked to
+						// woocommerce_add_to_cart at the default priority 10,
+						// while calculate_totals() is hooked to the same
+						// action at priority 20), so line_total/line_tax
+						// aren't populated yet. Compute both the same way WC
+						// itself would once totals do run, using the
+						// product's own tax-inclusive/exclusive price
+						// helpers, instead of silently treating tax as 0.
 						$product_obj                                    = wc_get_product($item_id);
-						$abncart_properties['abandoned_cart_subtotal'] += (float) $product_obj->get_price() * (int) $single_cart_item['quantity'];
+						$item_qty                                       = (int) $qty;
+						$abncart_properties['abandoned_cart_subtotal'] += (float) $product_obj->get_price() * $item_qty;
+						if ($product_obj instanceof WC_Product && wc_tax_enabled()) {
+							$price_incl_tax = wc_get_price_including_tax($product_obj, array('qty' => $item_qty));
+							$price_excl_tax = wc_get_price_excluding_tax($product_obj, array('qty' => $item_qty));
+							$abncart_properties['abandoned_cart_tax_value'] += max(0, $price_incl_tax - $price_excl_tax);
+						}
 					}
-
-					$abncart_properties['abandoned_cart_tax_value'] += isset($single_cart_item['line_tax']) ? $single_cart_item['line_tax'] : 0;
 				}
 
 				$cart_url .= implode(',', $cart_prod);
@@ -1922,7 +2212,7 @@ class Hubwoo_Admin
 		}
 
 		$existing_guest_users = array_values($existing_guest_users);
-		update_option('mwb_hubwoo_guest_user_cart', $existing_guest_users);
+		update_option('mwb_hubwoo_guest_user_cart', $existing_guest_users, false);
 	}
 
 	/**
@@ -1962,7 +2252,7 @@ class Hubwoo_Admin
 				}
 			}
 
-			update_option('mwb_hubwoo_guest_user_cart', $saved_carts);
+			update_option('mwb_hubwoo_guest_user_cart', $saved_carts, false);
 
 			// process the clearing of meta for registered users but don't clear their cart.
 			$args['meta_query'] = array(
@@ -2021,6 +2311,12 @@ class Hubwoo_Admin
 				),
 			),
 		);
+		// hubwoo_pro_user_left_cart is set for ANY logged-in user regardless of
+		// role (see hubwoo_abncart_woocommerce_add_to_cart()) -- without this,
+		// this merge silently reintroduces every role the caller's query
+		// already filtered out, syncing a Contact for roles the admin
+		// explicitly excluded from real-time sync.
+		$args['role__in']            = get_option('hubwoo-selected-user-roles', array());
 		$args['number']              = 10;
 		$args['fields']              = 'ID';
 		$hubwoo_abandoned_cart_users = get_users($args);
@@ -2146,7 +2442,7 @@ class Hubwoo_Admin
 			'class'    => 'hubwoo-general-settings-fields',
 			'type'     => 'select',
 			'desc'     => esc_html__('Select an order status from the dropdown for which the new order property will be set/changed on each sync. Default Order Status is Completed', 'makewebbetter-hubspot-for-woocommerce'),
-			'options'  => wc_get_order_statuses(),
+			'options'  => Hubwoo::hubwoo_get_valid_order_statuses(),
 			'desc_tip' => true,
 			'default'  => 'wc-completed',
 		);
@@ -2170,36 +2466,6 @@ class Hubwoo_Admin
 		);
 
 		return $basic_settings;
-	}
-
-	/**
-	 * Get products count.
-	 *
-	 * @since    1.0.0
-	 * @return int $counter count of woocommerce products.
-	 */
-	public static function hubwoo_get_all_products_count()
-	{
-		$counter = 0;
-
-		$query = new WP_Query();
-
-		$products = $query->query(
-			array(
-				'post_type'           => array('product', 'product_variation'),
-				'posts_per_page'      => -1,
-				'post_status'         => apply_filters('hubwoo_accept_product_status', array('publish')),
-				'orderby'             => 'date',
-				'order'               => 'desc',
-				'fields'              => 'ids',
-				'no_found_rows'       => true,
-				'ignore_sticky_posts' => true,
-			)
-		);
-		if (! empty($products)) {
-			$counter = count($products);
-		}
-		return $counter;
 	}
 
 	/**
@@ -2239,6 +2505,84 @@ class Hubwoo_Admin
 	}
 
 	/**
+	 * Cheap peek to see if any existing deal's order has changed recently
+	 * and needs its deal updated, without doing the full sync work.
+	 *
+	 * @return bool
+	 */
+	private static function hubwoo_deal_update_pending_exists()
+	{
+		if ('yes' === get_option('hubwoo_connection_issue', 'no')) {
+			return false;
+		}
+
+		if (Hubwoo::hubwoo_hpos_orders_blocked()) {
+			return false;
+		}
+
+		$is_hpos_enabled = Hubwoo::hubwoo_check_hpos_active();
+
+		if ($is_hpos_enabled) {
+			$args = array(
+				'limit'               => 1,
+				'post_status'         => array_keys(Hubwoo::hubwoo_get_valid_order_statuses()),
+				'orderby'             => 'date',
+				'order'               => 'desc',
+				'return'              => 'ids',
+				'meta_key'            => 'hubwoo_ecomm_deal_created',
+				'meta_compare'        => 'EXISTS',
+				'no_found_rows'       => true,
+				'ignore_sticky_posts' => true,
+				'post_parent'         => 0,
+			);
+		} else {
+			$args = array(
+				'post_type'           => 'shop_order',
+				'posts_per_page'      => 1,
+				'post_status'         => array_keys(Hubwoo::hubwoo_get_valid_order_statuses()),
+				'orderby'             => 'date',
+				'order'               => 'desc',
+				'fields'              => 'ids',
+				'no_found_rows'       => true,
+				'ignore_sticky_posts' => true,
+				'meta_query'          => array(
+					array(
+						'key'     => 'hubwoo_ecomm_deal_created',
+						'compare' => 'EXISTS',
+					),
+				),
+			);
+		}
+
+		$hubwoo_last_time_order_sync = get_option('hubwoo_last_time_order_sync', current_time('mysql', true));
+		if (! empty($hubwoo_last_time_order_sync)) {
+			$date = new DateTime($hubwoo_last_time_order_sync, new DateTimeZone('UTC'));
+			$date->modify('-3 minutes');
+			$after_date = $date->format('Y-m-d H:i:s');
+
+			$args['date_query'] = array(
+				array(
+					'column'    => $is_hpos_enabled ? 'date_updated_gmt' : 'post_modified_gmt',
+					'after'     => $after_date,
+					'inclusive' => true,
+				),
+			);
+		}
+
+		$args = apply_filters('hubwoo_deals_update_filter', $args);
+
+		if ($is_hpos_enabled) {
+			$query                = new WC_Order_Query($args);
+			$orders_needs_syncing = $query->get_orders();
+		} else {
+			$query                = new WP_Query();
+			$orders_needs_syncing = $query->query($args);
+		}
+
+		return ! empty($orders_needs_syncing);
+	}
+
+	/**
 	 * Background sync for Deals.
 	 *
 	 * @since 1.0.0
@@ -2246,7 +2590,11 @@ class Hubwoo_Admin
 	public function hubwoo_ecomm_deal_update()
 	{
 
-		if ('no' == get_option('hubwoo_ecomm_setup_completed', 'no') || 'yes' === get_option('hubwoo_connection_issue', 'no')) {
+		if ('yes' === get_option('hubwoo_connection_issue', 'no')) {
+			return;
+		}
+
+		if (Hubwoo::hubwoo_hpos_orders_blocked()) {
 			return;
 		}
 
@@ -2255,8 +2603,8 @@ class Hubwoo_Admin
 		if ($is_hpos_enabled) {
 			// HPOS is enabled.
 			$args = array(
-				'posts_per_page'      => -1,
-				'post_status'         => array_keys(wc_get_order_statuses()),
+				'limit'               => 20,
+				'post_status'         => array_keys(Hubwoo::hubwoo_get_valid_order_statuses()),
 				'orderby'             => 'date',
 				'order'               => 'desc',
 				'return'              => 'ids',
@@ -2270,8 +2618,8 @@ class Hubwoo_Admin
 			// CPT-based orders are in use.
 			$args = array(
 				'post_type'           => 'shop_order',
-				'posts_per_page'      => -1,
-				'post_status'         => array_keys(wc_get_order_statuses()),
+				'posts_per_page'      => 20,
+				'post_status'         => array_keys(Hubwoo::hubwoo_get_valid_order_statuses()),
 				'orderby'             => 'date',
 				'order'               => 'desc',
 				'fields'              => 'ids',
@@ -2325,18 +2673,26 @@ class Hubwoo_Admin
 			}
 		}
 
-		update_option('hubwoo_last_time_order_sync', current_time('mysql', true));
+		update_option('hubwoo_last_time_order_sync', current_time('mysql', true), false);
 	}
 
 	public function hubwoo_check_orders_upsert_key($orders)
 	{
-		$is_hpos_enabled = Hubwoo::hubwoo_check_hpos_active();
+		// HPOS is primary but the add-on isn't licensed -- don't fall through to
+		// the legacy branch below; that branch is for genuinely Legacy-primary
+		// stores, not a stand-in for "not activated yet".
+		if (Hubwoo::hubwoo_hpos_orders_blocked()) {
+			return $orders;
+		}
+
+		$is_hpos_enabled    = Hubwoo::hubwoo_check_hpos_active();
+		$upsert_key_statuses = array_keys( Hubwoo::hubwoo_get_valid_order_statuses() );
 		//hpos changes
 		if ($is_hpos_enabled) {
 			// HPOS is enabled.
 			$args = array(
 				'posts_per_page'      => 5,
-				'post_status'         => array_keys(wc_get_order_statuses()),
+				'post_status'         => $upsert_key_statuses,
 				'orderby'             => 'date',
 				'order'               => 'ASC',
 				'return'              => 'ids',
@@ -2356,7 +2712,7 @@ class Hubwoo_Admin
 			$args = array(
 				'post_type'           => 'shop_order',
 				'posts_per_page'      => 5,
-				'post_status'         => array_keys(wc_get_order_statuses()),
+				'post_status'         => $upsert_key_statuses,
 				'orderby'             => 'date',
 				'order'               => 'ASC',
 				'fields'              => 'ids',
@@ -2424,132 +2780,24 @@ class Hubwoo_Admin
 	}
 
 	/**
-	 * Background sync for Products.
+	 * Keep our own HubSpot sync-state meta from being copied onto a duplicated
+	 * product. Without this, a clone inherits the original product's
+	 * hubwoo_ecomm_pro_id and is then treated as already synced -- it never gets
+	 * pushed to HubSpot on its own, and if it's later edited, hubwoo_ecomm_update_product()
+	 * would use that inherited ID to push the clone's data as an update to the
+	 * *original* product's HubSpot record.
 	 *
-	 * @since 1.0.0
+	 * @since 1.6.8
+	 * @param array $exclude_meta Meta keys WooCommerce already excludes from duplication.
+	 * @return array
 	 */
-	public function hubwoo_products_sync_background()
+	public function hubwoo_exclude_product_meta_from_duplicate($exclude_meta)
 	{
+		$exclude_meta[] = 'hubwoo_ecomm_pro_id';
+		$exclude_meta[] = 'hubwoo_product_synced';
+		$exclude_meta[] = 'hubwoo_ecomm_invalid_pro';
 
-		if ('yes' != get_option('hubwoo_greeting_displayed_setup', 'no') || 'yes' == get_option('hubwoo_product_scope_needed', 'no')) {
-			return;
-		}
-
-		$product_data = Hubwoo::hubwoo_get_product_data(10);
-		if (! empty($product_data) && is_array($product_data)) {
-
-			foreach ($product_data as $pro_id => $value) {
-
-				$filtergps = array();
-				$product_data = array(
-					'properties' => $value['properties'],
-				);
-
-				$flag = true;
-				if (Hubwoo::is_access_token_expired()) {
-
-					$hapikey = HUBWOO_CLIENT_ID;
-					$hseckey = HUBWOO_SECRET_ID;
-					$status  = HubWooConnectionMananager::get_instance()->hubwoo_refresh_token($hapikey, $hseckey);
-
-					if (! $status) {
-
-						$flag = false;
-					}
-				}
-
-				if ($flag) {
-
-					$product = wc_get_product($pro_id);
-
-					if ($product instanceof WC_Product) {
-
-						$filtergps = array(
-							'filterGroups' => array(
-								array(
-									'filters' => array(
-										array(
-											'value' => $pro_id,
-											'propertyName' => 'store_product_id',
-											'operator' => 'EQ',
-										),
-									),
-								),
-							),
-						);
-
-						if (!empty($product->get_sku())) {
-							$filtergps['filterGroups'][] = array(
-								'filters' => array(
-									array(
-										'value' => $product->get_sku(),
-										'propertyName' => 'hs_sku',
-										'operator' => 'EQ',
-									),
-								),
-							);
-						}
-
-						$response = HubWooConnectionMananager::get_instance()->search_object_record('products', $filtergps);
-
-						if (200 == $response['status_code']) {
-							$responce_body = json_decode($response['body']);
-							$result = $responce_body->results;
-							if (! empty($result)) {
-								foreach ($result as $key => $value) {
-									update_post_meta($pro_id, 'hubwoo_ecomm_pro_id', $value->id);
-								}
-							}
-						}
-
-						$pro_hs_id = get_post_meta($pro_id, 'hubwoo_ecomm_pro_id', true);
-						if (! empty($pro_hs_id)) {
-							$response = HubWooConnectionMananager::get_instance()->update_object_record('products', $pro_hs_id, $product_data);
-							if (200 == $response['status_code']) {
-								delete_post_meta($pro_id, 'hubwoo_product_synced');
-							}
-						} else {
-							$response = HubWooConnectionMananager::get_instance()->create_object_record('products', $product_data);
-							if (201 == $response['status_code']) {
-								$response_body = json_decode($response['body']);
-								update_post_meta($pro_id, 'hubwoo_ecomm_pro_id', $response_body->id);
-								delete_post_meta($pro_id, 'hubwoo_product_synced');
-							}
-						}
-						do_action('hubwoo_update_product_property', $pro_id);
-					}
-				}
-			}
-
-			if (! as_next_scheduled_action('hubwoo_products_status_background')) {
-				as_schedule_recurring_action(time(), 180, 'hubwoo_products_status_background');
-			}
-		}
-	}
-
-	/**
-	 * Background sync status for Products.
-	 *
-	 * @since 1.0.0
-	 */
-	public function hubwoo_products_status_background()
-	{
-
-		$products = Hubwoo::hubwoo_get_product_data(10);
-		if (empty($products)) {
-
-			$orders_needs_syncing = self::hubwoo_orders_count_for_deal();
-			if ($orders_needs_syncing) {
-
-				update_option('hubwoo_deals_sync_running', 1);
-				update_option('hubwoo_deals_sync_total', $orders_needs_syncing);
-				if (! as_next_scheduled_action('hubwoo_deals_sync_background')) {
-					as_schedule_recurring_action(time(), 300, 'hubwoo_deals_sync_background');
-				}
-			}
-
-			Hubwoo::hubwoo_stop_sync('stop-product-sync');
-		}
+		return $exclude_meta;
 	}
 
 	/**
@@ -2559,7 +2807,7 @@ class Hubwoo_Admin
 	 * @param int    $post_ID post id of the product.
 	 * @param object $post post object.
 	 */
-	public function hubwoo_ecomm_update_product($post_ID, $post)
+	public static function hubwoo_ecomm_update_product($post_ID, $post)
 	{
 
 		if ('yes' != get_option('hubwoo_greeting_displayed_setup', 'no') || 'yes' == get_option('hubwoo_product_scope_needed', 'no')) {
@@ -2595,7 +2843,7 @@ class Hubwoo_Admin
 							$properties                     = $hubwoo_ecomm_product->get_object_properties();
 							$properties                     = apply_filters('hubwoo_map_ecomm_' . $object_type . '_properties', $properties, $single_var_product->ID);
 							$pro_hs_id                      = get_post_meta($single_var_product->ID, 'hubwoo_ecomm_pro_id', true);
-							$properties['description']      = $properties['pr_description'];
+							$properties['description']      = isset($properties['pr_description']) ? $properties['pr_description'] : '';
 
 							unset($properties['pr_description']);
 							if (! empty($pro_hs_id)) {
@@ -2616,7 +2864,7 @@ class Hubwoo_Admin
 					$properties                     = $hubwoo_ecomm_product->get_object_properties();
 					$properties                     = apply_filters('hubwoo_map_ecomm_' . $object_type . '_properties', $properties, $post_ID);
 					$pro_hs_id                      = get_post_meta($post_ID, 'hubwoo_ecomm_pro_id', true);
-					$properties['description']      = $properties['pr_description'];
+					$properties['description']      = isset($properties['pr_description']) ? $properties['pr_description'] : '';
 
 					unset($properties['pr_description']);
 					if (! empty($pro_hs_id)) {
@@ -2693,37 +2941,24 @@ class Hubwoo_Admin
 
 		$sync_data['since_date']            = get_option('hubwoo_ecomm_order_ocs_from_date', gmdate('d-m-Y'));
 		$sync_data['upto_date']             = get_option('hubwoo_ecomm_order_ocs_upto_date', gmdate('d-m-Y'));
-		$sync_data['selected_order_status'] = get_option('hubwoo_ecomm_order_ocs_status', array_keys(wc_get_order_statuses()));
+		$sync_data['selected_order_status'] = array_diff(
+			get_option( 'hubwoo_ecomm_order_ocs_status', array_keys( Hubwoo::hubwoo_get_valid_order_statuses() ) ),
+			array( 'wc-checkout-draft' )
+		);
 
-		$is_hpos_enabled = Hubwoo::hubwoo_check_hpos_active();
-		//hpos changes
-		if ($is_hpos_enabled) {
-			// HPOS is enabled.
-			$args = array(
-				'limit'        => $number_of_posts, // Query all orders
-				'orderby'      => 'date',
-				'post_status'  => $sync_data['selected_order_status'],
-				'order'        => 'DESC',
-				'return'       => 'ids',
-				'meta_key'     => 'hubwoo_ecomm_deal_created', // The postmeta key field
-				'meta_compare' => 'NOT EXISTS', // The comparison argument
-				'post_parent'  => 0,
-			);
-		} else {
-			// CPT-based orders are in use.
-			$args = array(
-				'numberposts' => $number_of_posts,
-				'post_type'   => 'shop_order',
-				'fields'      => 'ids',
-				'post_status' => $sync_data['selected_order_status'],
-				'meta_query'  => array(
-					array(
-						'key'     => 'hubwoo_ecomm_deal_created',
-						'compare' => 'NOT EXISTS',
-					),
-				),
-			);
-		}
+		// wc_get_orders() resolves HPOS vs legacy storage internally (see
+		// hubwoo_setup_overview()), so a single call covers both -- no more
+		// branching on which query function to call.
+		$args = array(
+			'limit'        => $number_of_posts,
+			'orderby'      => 'date',
+			'post_status'  => $sync_data['selected_order_status'],
+			'order'        => 'DESC',
+			'return'       => 'ids',
+			'meta_key'     => 'hubwoo_ecomm_deal_created',
+			'meta_compare' => 'NOT EXISTS',
+			'post_parent'  => 0,
+		);
 
 		if ('yes' == get_option('hubwoo_ecomm_order_date_allow', 'no')) {
 			$args['date_query'] = array(
@@ -2735,24 +2970,37 @@ class Hubwoo_Admin
 			);
 		}
 
+		// 'meta_compare' => 'NOT EXISTS' above only checks whichever table is
+		// CURRENTLY the primary store. A store that has ever switched HPOS on/off
+		// can have hubwoo_ecomm_deal_created sitting in the *other* table from an
+		// earlier period, which would otherwise make an already-synced order look
+		// unsynced and get re-selected for historical deal creation. Exclude
+		// anything flagged in the other table directly.
+		global $wpdb;
+		$hpos_enabled          = Hubwoo::hubwoo_is_hpos_enabled();
+		$other_table           = $hpos_enabled ? $wpdb->postmeta : "{$wpdb->prefix}wc_orders_meta";
+		$other_table_id_column = $hpos_enabled ? 'post_id' : 'order_id';
+		$synced_elsewhere      = $wpdb->get_col(
+			"SELECT DISTINCT {$other_table_id_column} FROM {$other_table} WHERE meta_key = 'hubwoo_ecomm_deal_created'"
+		);
+		if (! empty($synced_elsewhere)) {
+			$args['exclude'] = array_map('intval', $synced_elsewhere);
+		}
+
 		$args = apply_filters('hubwoo_deals_historical_sync_filter', $args);
 
-		//hpos changes
-		if ($is_hpos_enabled) {
-			$old_orders = wc_get_orders($args);
-		} else {
-			$old_orders = get_posts($args);
-		}
-
 		if ($count) {
-
-			$orders_count = count($old_orders);
-
-			return $orders_count;
-		} else {
-
-			return $old_orders;
+			// wc_get_orders() has no native 'count' return mode; 'paginate' gives
+			// us the total without loading every order into memory.
+			$count_args             = $args;
+			$count_args['return']   = 'ids';
+			$count_args['paginate'] = true;
+			$count_args['limit']    = -1;
+			$results                = wc_get_orders($count_args);
+			return isset($results->total) ? (int) $results->total : 0;
 		}
+
+		return wc_get_orders($args);
 	}
 
 	/**
@@ -2852,7 +3100,7 @@ class Hubwoo_Admin
 			'id'       => 'hubwoo_ecomm_order_ocs_status',
 			'type'     => 'multiselect',
 			'desc'     => __('Select a order status from the dropdown and all orders for the selected status will be synced as deals', 'makewebbetter-hubspot-for-woocommerce'),
-			'options'  => wc_get_order_statuses(),
+			'options'  => Hubwoo::hubwoo_get_valid_order_statuses(),
 			'desc_tip' => true,
 			'class'    => 'hubwoo-ecomm-settings-select',
 		);
@@ -2928,14 +3176,16 @@ class Hubwoo_Admin
 
 		$hubwoodatasync = new HubwooDataSync();
 
-		$unique_users = $hubwoodatasync->hubwoo_get_all_unique_user(true);
-
-		update_option('hubwoo_total_ocs_need_sync', $unique_users);
-
 		$hubwoodatasync->hubwoo_start_schedule();
 
 		if ($redirect) {
+			// Without exit, the calling template keeps rendering its entire
+			// page body after this header is queued -- same failure mode
+			// already fixed in hubwoo_redirect_from_hubspot(): other code
+			// later in the same request can still run and interfere before
+			// the browser actually acts on the redirect.
 			wp_safe_redirect(admin_url('admin.php?page=hubwoo&hubwoo_tab=hubwoo-sync-contacts'));
+			exit;
 		}
 	}
 
@@ -2949,6 +3199,14 @@ class Hubwoo_Admin
 	{
 
 		if (isset($_GET['action']) && 'download-log' === $_GET['action']) {
+			// admin_init fires on every wp-admin page load for any logged-in
+			// user, regardless of role -- this streams the plugin's raw log
+			// file (can contain HubSpot API request/response bodies with
+			// customer PII), so it needs its own explicit check.
+			if (! current_user_can('manage_woocommerce')) {
+				wp_die();
+			}
+
 			$filename = WC_LOG_DIR . 'hubspot-for-woocommerce-logs.log';
 
 			global $wp_filesystem;
@@ -2983,13 +3241,83 @@ class Hubwoo_Admin
 				wp_die(esc_html__('Log file not found or inaccessible.', 'makewebbetter-hubspot-for-woocommerce'));
 			}
 		} elseif (isset($_GET['action']) && 'dismiss-hubwoo-notice' === $_GET['action']) {
-			update_option('hubwoo-cron-notice-dismiss', 'yes');
 			wp_safe_redirect(admin_url('admin.php') . '?page=hubwoo');
 			exit();
 		}
 	}
 
 
+
+	/**
+	 * Cheap peek to see if any order is waiting to be synced as a deal,
+	 * without doing the full sync work.
+	 *
+	 * @return bool
+	 */
+	private static function hubwoo_deals_pending_exists()
+	{
+		if ('yes' === get_option('hubwoo_connection_issue', 'no')) {
+			return false;
+		}
+
+		if (Hubwoo::hubwoo_hpos_orders_blocked()) {
+			return false;
+		}
+
+		$is_hpos_enabled    = Hubwoo::hubwoo_check_hpos_active();
+		$deal_sync_statuses = array_keys(Hubwoo::hubwoo_get_valid_order_statuses());
+
+		if ($is_hpos_enabled) {
+			$args = array(
+				'limit'        => 1,
+				'orderby'      => 'date',
+				'post_status'  => $deal_sync_statuses,
+				'order'        => 'DESC',
+				'return'       => 'ids',
+				'meta_key'     => 'hubwoo_ecomm_deal_created',
+				'meta_compare' => 'NOT EXISTS',
+				'post_parent'  => 0,
+			);
+		} else {
+			$args = array(
+				'post_type'           => 'shop_order',
+				'posts_per_page'      => 1,
+				'post_status'         => $deal_sync_statuses,
+				'orderby'             => 'date',
+				'order'               => 'desc',
+				'fields'              => 'ids',
+				'no_found_rows'       => true,
+				'ignore_sticky_posts' => true,
+				'meta_query'          => array(
+					array(
+						'key'     => 'hubwoo_ecomm_deal_created',
+						'compare' => 'NOT EXISTS',
+					),
+				),
+			);
+		}
+
+		$activated_time = get_option('hubwoo_plugin_activated_time', '');
+		if (! empty($activated_time)) {
+			$args['date_query'] = array(
+				array(
+					'after'     => gmdate('d-m-Y', strtotime('-1 day', $activated_time)),
+					'inclusive' => true,
+				),
+			);
+		}
+
+		$args = apply_filters('hubwoo_deals_sync_filter', $args);
+
+		if ($is_hpos_enabled) {
+			$orders_needs_syncing = wc_get_orders($args);
+		} else {
+			$query                = new WP_Query();
+			$orders_needs_syncing = $query->query($args);
+		}
+
+		return ! empty($orders_needs_syncing);
+	}
 
 	/**
 	 * Re-sync Orders as deals.
@@ -2999,18 +3327,24 @@ class Hubwoo_Admin
 	public function hubwoo_deals_sync_check()
 	{
 
-		if ('no' == get_option('hubwoo_ecomm_setup_completed', 'no') || 'yes' === get_option('hubwoo_connection_issue', 'no')) {
+		if ('yes' === get_option('hubwoo_connection_issue', 'no')) {
+			return;
+		}
+
+		if (Hubwoo::hubwoo_hpos_orders_blocked()) {
 			return;
 		}
 
 		$is_hpos_enabled = Hubwoo::hubwoo_check_hpos_active();
+		$deal_sync_statuses = array_keys( Hubwoo::hubwoo_get_valid_order_statuses() );
+
 		//hpos changes
 		if ($is_hpos_enabled) {
 			// HPOS is enabled.
 			$args = array(
 				'limit'        => 3, // Query all orders
 				'orderby'      => 'date',
-				'post_status'  => array_keys(wc_get_order_statuses()),
+				'post_status'  => $deal_sync_statuses,
 				'order'        => 'DESC',
 				'return'       => 'ids',
 				'meta_key'     => 'hubwoo_ecomm_deal_created', // The postmeta key field
@@ -3024,7 +3358,7 @@ class Hubwoo_Admin
 			$args = array(
 				'post_type'           => 'shop_order',
 				'posts_per_page'      => 3,
-				'post_status'         => array_keys(wc_get_order_statuses()),
+				'post_status'         => $deal_sync_statuses,
 				'orderby'             => 'date',
 				'order'               => 'desc',
 				'fields'              => 'ids',
@@ -3065,6 +3399,39 @@ class Hubwoo_Admin
 				}
 			}
 		}
+	}
+
+	/**
+	 * Cheap peek to see if any product is waiting to be synced,
+	 * without building properties or calling the HubSpot API.
+	 *
+	 * @return bool
+	 */
+	private static function hubwoo_products_pending_exists()
+	{
+		if ('yes' != get_option('hubwoo_greeting_displayed_setup', 'no') || 'yes' == get_option('hubwoo_product_scope_needed', 'no')) {
+			return false;
+		}
+
+		$constraints = array(
+			array(
+				'key'     => 'hubwoo_ecomm_pro_id',
+				'compare' => 'NOT EXISTS',
+			),
+			array(
+				'key'     => 'hubwoo_ecomm_invalid_pro',
+				'compare' => 'NOT EXISTS',
+			),
+			array(
+				'key'     => 'hubwoo_product_synced',
+				'compare' => 'NOT EXISTS',
+			),
+			'relation' => 'AND',
+		);
+
+		$products = Hubwoo::hubwoo_ecomm_get_products(1, $constraints);
+
+		return ! empty($products);
 	}
 
 	/**
@@ -3172,26 +3539,45 @@ class Hubwoo_Admin
 	 */
 	public function hubwoo_contacts_sync_background()
 	{
-		$user_data          = array();
-		$hubwoo_datasync    = new HubwooDataSync();
-		$users_need_syncing = $hubwoo_datasync->hubwoo_get_all_unique_user();
-		if (! count($users_need_syncing)) {
-			$users_need_syncing = $hubwoo_datasync->hubwoo_get_all_unique_user(false, 'guestOrder');
-			$user_data          = HubwooDataSync::get_guest_sync_data($users_need_syncing);
-			$mark['type']       = 'order';
-			$mark['ids']        = $users_need_syncing;
-		} else {
-			$user_data    = HubwooDataSync::get_sync_data($users_need_syncing);
-			$mark['type'] = 'user';
-			$mark['ids']  = $users_need_syncing;
+		$hubwoo_datasync = new HubwooDataSync();
+
+		$reg_batch_pending = $this->hubwoo_contacts_batch_pending('historical', 'reg');
+
+		if (! $reg_batch_pending) {
+			// Registered users needing historical sync (hubwoo_pro_user_data_change NOT EXISTS).
+			$users_need_syncing = $hubwoo_datasync->hubwoo_get_all_unique_user(false, 'customer', 5);
+
+			if (! empty($users_need_syncing)) {
+				$batch_id = bin2hex(random_bytes(16));
+				update_option('hubwoo_batch_users_to_sync_' . $batch_id, $users_need_syncing, false);
+				as_enqueue_async_action('hubwoo_contacts_batch_sync', array('sync_type' => 'historical', 'user_type' => 'reg', 'batch_id' => $batch_id));
+				return;
+			}
 		}
 
-		if (! empty($user_data)) {
-			$response = HubWooConnectionMananager::get_instance()->create_or_update_contacts($user_data, $mark);
-			if ((count($user_data)) && 400 == $response['status_code']) {
-				Hubwoo::hubwoo_handle_contact_sync($response, $user_data, $mark);
+		$guest_batch_pending = $this->hubwoo_contacts_batch_pending('historical', 'guest');
+
+		if (! $guest_batch_pending) {
+			// No registered users left — fall back to guest orders needing historical sync
+			// (hubwoo_pro_guest_order NOT EXISTS). The guestOrder branch always returns the
+			// full matching set, so trim it to the same batch size here.
+			$orders_need_syncing = $hubwoo_datasync->hubwoo_get_all_unique_user(false, 'guestOrder');
+			$orders_need_syncing = array_slice((array) $orders_need_syncing, 0, 5);
+
+			if (! empty($orders_need_syncing)) {
+				$batch_id = bin2hex(random_bytes(16));
+				update_option('hubwoo_batch_users_to_sync_' . $batch_id, $orders_need_syncing, false);
+				as_enqueue_async_action('hubwoo_contacts_batch_sync', array('sync_type' => 'historical', 'user_type' => 'guest', 'batch_id' => $batch_id));
+				return;
 			}
-		} else {
+		}
+
+		// Only declare the sync fully finished if nothing is already pending AND
+		// nothing new was found -- a pending batch means work is still in flight
+		// even though we skipped re-querying for it this tick, so stopping here
+		// would unschedule this recurring job while a sync is still genuinely
+		// running.
+		if (! $reg_batch_pending && ! $guest_batch_pending) {
 			Hubwoo::hubwoo_stop_sync('stop-contact');
 		}
 	}
@@ -3236,48 +3622,57 @@ class Hubwoo_Admin
 			}
 		} else {
 
-			//hpos changes
-			if (Hubwoo::hubwoo_check_hpos_active()) {
-				// HPOS is enabled.
-				$query = new WC_Order_Query(array(
-					'limit'        => 20, // Query all orders
-					'orderby'      => 'date',
-					'post_status'  => array_keys(wc_get_order_statuses()),
-					'order'        => 'DESC',
-					'return'       => 'ids',
-					'meta_key'     => 'hubwoo_user_vid', // The postmeta key field
-					'meta_compare' => 'NOT EXISTS', // The comparison argument
-					'post_parent'  => 0,
-					'customer_id'  => 0,
-				));
-				$customer_orders = $query->get_orders();
-			} else {
-				// CPT-based orders are in use.
-				$query = new WP_Query();
+			// HPOS is primary but the add-on isn't licensed -- skip the
+			// guest-order lookup entirely rather than falling through to the
+			// legacy branch below, which isn't meant to run against an
+			// HPOS-primary store.
+			$customer_orders = Hubwoo::hubwoo_hpos_orders_blocked() ? array() : null;
 
-				$customer_orders = $query->query(
-					array(
-						'post_type'           => 'shop_order',
-						'posts_per_page'      => 20,
-						'post_status'         => array_keys(wc_get_order_statuses()),
-						'orderby'             => 'date',
-						'order'               => 'desc',
-						'fields'              => 'ids',
-						'no_found_rows'       => true,
-						'ignore_sticky_posts' => true,
-						'meta_query'          => array(
-							'relation' => 'AND',
-							array(
-								'key'   => '_customer_user',
-								'value' => 0,
+			if ( null === $customer_orders ) {
+				//hpos changes
+				$contact_batch_statuses = array_keys( Hubwoo::hubwoo_get_valid_order_statuses() );
+				if (Hubwoo::hubwoo_check_hpos_active()) {
+					// HPOS is enabled.
+					$query = new WC_Order_Query(array(
+						'limit'        => 20, // Query all orders
+						'orderby'      => 'date',
+						'post_status'  => $contact_batch_statuses,
+						'order'        => 'DESC',
+						'return'       => 'ids',
+						'meta_key'     => 'hubwoo_user_vid', // The postmeta key field
+						'meta_compare' => 'NOT EXISTS', // The comparison argument
+						'post_parent'  => 0,
+						'customer_id'  => 0,
+					));
+					$customer_orders = $query->get_orders();
+				} else {
+					// CPT-based orders are in use.
+					$query = new WP_Query();
+
+					$customer_orders = $query->query(
+						array(
+							'post_type'           => 'shop_order',
+							'posts_per_page'      => 20,
+							'post_status'         => $contact_batch_statuses,
+							'orderby'             => 'date',
+							'order'               => 'desc',
+							'fields'              => 'ids',
+							'no_found_rows'       => true,
+							'ignore_sticky_posts' => true,
+							'meta_query'          => array(
+								'relation' => 'AND',
+								array(
+									'key'   => '_customer_user',
+									'value' => 0,
+								),
+								array(
+									'key'     => 'hubwoo_user_vid',
+									'compare' => 'NOT EXISTS',
+								),
 							),
-							array(
-								'key'     => 'hubwoo_user_vid',
-								'compare' => 'NOT EXISTS',
-							),
-						),
-					)
-				);
+						)
+					);
+				}
 			}
 
 			if (! empty($customer_orders)) {
@@ -3491,7 +3886,7 @@ class Hubwoo_Admin
 					}
 				}
 
-				update_option('hubwoo_newsletter_property_update', $property_changed);
+				update_option('hubwoo_newsletter_property_update', $property_changed, false);
 			}
 
 			if (empty($abandoned_property_updated)) {
@@ -3531,7 +3926,7 @@ class Hubwoo_Admin
 					}
 				}
 
-				update_option('hubwoo_abandoned_property_update', $abandoned_property_changed);
+				update_option('hubwoo_abandoned_property_update', $abandoned_property_changed, false);
 			}
 		}
 	}
@@ -3565,10 +3960,9 @@ class Hubwoo_Admin
 
 					$response            = HubWooConnectionMananager::get_instance()->create_batch_properties($product_properties, 'products');
 					if (201 == $response['status_code'] || 207 == $response['status_code']) {
-						update_option('hubwoo_product_property_created', 'yes');
+						update_option('hubwoo_product_property_created', 'yes', false);
 					} else if (403 == $response['status_code']) {
-						update_option('hubwoo_product_scope_needed', 'yes');
-						update_option('hubwoo_ecomm_setup_completed', 'yes');
+						update_option('hubwoo_product_scope_needed', 'yes', false);
 					}
 				}
 
@@ -3577,7 +3971,7 @@ class Hubwoo_Admin
 
 					$response         = HubWooConnectionMananager::get_instance()->create_batch_properties($deal_properties, 'deals');
 					if (201 == $response['status_code'] || 207 == $response['status_code']) {
-						update_option('hubwoo_deal_property_created', 'yes');
+						update_option('hubwoo_deal_property_created', 'yes', false);
 					}
 				}
 
@@ -3593,7 +3987,7 @@ class Hubwoo_Admin
 
 					$response         = HubWooConnectionMananager::get_instance()->create_batch_properties($group_properties, 'contacts');
 					if (201 == $response['status_code'] || 207 == $response['status_code']) {
-						update_option('hubwoo_contact_new_property_created', 'yes');
+						update_option('hubwoo_contact_new_property_created', 'yes', false);
 					}
 				}
 
@@ -3609,6 +4003,20 @@ class Hubwoo_Admin
 			}
 			if (as_next_scheduled_action('hubwoo_contacts_batch_sync')) {
 				as_unschedule_all_actions('hubwoo_contacts_batch_sync');
+			}
+			// The jobs just cancelled above are the only code that ever deletes a
+			// hubwoo_batch_users_to_sync_{batch_id} option -- any that were still
+			// pending get orphaned the moment those jobs are cancelled, since
+			// nothing else in the plugin ever looks for this option again.
+			global $wpdb;
+			$hubwoo_orphaned_batches = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s",
+					$wpdb->esc_like('hubwoo_batch_users_to_sync_') . '%'
+				)
+			);
+			foreach ($hubwoo_orphaned_batches as $hubwoo_orphaned_batch) {
+				delete_option($hubwoo_orphaned_batch);
 			}
 			if (as_next_scheduled_action('hubwoo_deals_sync_check')) {
 				as_unschedule_action('hubwoo_deals_sync_check');
@@ -3633,7 +4041,7 @@ class Hubwoo_Admin
 			}
 			// Activate new schedulers
 			HubWoo_Schedulers::get_instance()->hubwoo_initate_schedulers();
-			update_option('hubwoo_enable_worker_scheduler', 1);
+			update_option('hubwoo_enable_worker_scheduler', 1, false);
 		}
 
 		HubWoo_Schedulers::get_instance()->hubwoo_trigger_heartbeat();
@@ -3655,15 +4063,21 @@ class Hubwoo_Admin
 				return;
 			}
 
-			$post_type = get_post_type($order_id);
-			if ('shop_subscription' == $post_type) {
+			if ('shop_subscription' == $order->get_type()) {
 				return;
 			}
 
-			if ('yes' == get_option('woocommerce_custom_orders_table_data_sync_enabled', 'no') && 'yes' == get_option('woocommerce_custom_orders_table_enabled', 'no')) {
-				return;
-			}
-
+			// A previous version bailed out here whenever HPOS was primary AND
+			// "Enable compatibility mode" was on -- that combination is WooCommerce's
+			// own recommended post-migration configuration, so this silently stopped
+			// every order status change from ever flagging the order for HubSpot
+			// deal sync, for any store in that state (licensed or not). Removed: the
+			// upsert_meta re-entrancy check a few lines above already prevents this
+			// from firing twice for the same pending order, and
+			// hubwoo_hpos_update_meta_data() below already writes to whichever store
+			// is actually primary (Hubwoo::hubwoo_is_hpos_enabled()) regardless of
+			// compatibility mode -- there was nothing left for this check to protect
+			// against.
 			Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_ecomm_deal_upsert', 'yes');
 
 			HubWoo_Schedulers::get_instance()->hubwoo_trigger_heartbeat();
@@ -3749,8 +4163,36 @@ class Hubwoo_Admin
 			if (! HubWoo_Schedulers::get_instance()->should_schedule_task($task)) {
 				continue;
 			}
-			as_enqueue_async_action('hubwoo_real_time_task', array('task' => $task));
+			if (! self::hubwoo_task_has_pending_work($task)) {
+				continue;
+			}
+			// Scheduled (not async-dispatched) so it rides the normal Action Scheduler
+			// queue instead of forcing an immediate loopback request to admin-ajax.php.
+			as_schedule_single_action(time(), 'hubwoo_real_time_task', array('task' => $task));
 		}
+	}
+
+	/**
+	 * Cheap existence check to avoid queuing a sync task (and the background
+	 * action/request that comes with it) when there is nothing for it to do.
+	 *
+	 * @param string $task task key.
+	 * @return bool
+	 */
+	private static function hubwoo_task_has_pending_work($task)
+	{
+		switch ($task) {
+			case 'deals_sync':
+				return self::hubwoo_deals_pending_exists();
+			case 'products_sync':
+				return self::hubwoo_products_pending_exists();
+			case 'deals_update':
+				return self::hubwoo_deal_update_pending_exists();
+			case 'contacts_sync':
+				return self::hubwoo_contacts_pending_exists();
+		}
+
+		return false;
 	}
 
 	public function hubwoo_real_time_task($task)

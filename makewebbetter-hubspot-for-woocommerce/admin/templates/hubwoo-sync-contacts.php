@@ -14,6 +14,9 @@
 ?>
 <?php
 if ( isset( $_GET['action'] ) && 'hubwoo-osc-schedule-sync' == $_GET['action'] ) {
+	if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'hubwoo_osc_schedule_sync' ) ) {
+		wp_die();
+	}
 	Hubwoo_Admin::hubwoo_schedule_sync_listener( true );
 }
 ?>
@@ -22,7 +25,7 @@ if ( isset( $_GET['action'] ) && 'hubwoo-osc-schedule-sync' == $_GET['action'] )
 	<form action="" method="post" id="hubwoo-ocs-form">
 		<?php
 		if ( empty( get_option( 'hubwoo_customers_role_settings', array() ) ) ) {
-			update_option( 'hubwoo_customers_role_settings', array_keys( Hubwoo_Admin::get_all_user_roles() ) );
+			update_option( 'hubwoo_customers_role_settings', array_keys( Hubwoo_Admin::get_all_user_roles() ), false );
 		}
 			woocommerce_admin_fields( Hubwoo_Admin::hubwoo_customers_sync_settings() );
 		?>
@@ -30,18 +33,7 @@ if ( isset( $_GET['action'] ) && 'hubwoo-osc-schedule-sync' == $_GET['action'] )
 			<div class="hubwoo-user-notice" style="margin-bottom: 20px;">
 				<span class="hubwoo-ocs-btn-notice"><?php esc_html_e( 'Fetching all of the recently updated and un-synced users / orders', 'makewebbetter-hubspot-for-woocommerce' ); ?></span> <span id='hubwoo-usr-spin' class="fa fa-spin fa-spinner"></span>
 			</div>
-			<a href="javascript:void(0);" style="display: none;" id = "hubwoo-osc-instant-sync" class="hubwoo-osc-instant-sync hubwoo__btn" data-total_users=""><?php esc_html_e( 'Sync Now', 'makewebbetter-hubspot-for-woocommerce' ); ?></a>
-			<a href="?page=hubwoo&hubwoo_tab=hubwoo-sync-contacts&action=hubwoo-osc-schedule-sync" id = "hubwoo-osc-schedule-sync" style="display: none;" class="hubwoo-osc-schedule-sync hubwoo__btn"><?php esc_html_e( 'Schedule Sync', 'makewebbetter-hubspot-for-woocommerce' ); ?></a>			
-		</div>		
-	</form>	
-
-	<div class="hubwoo-progress-wrap progress-cover" style="display: none;">
-		<div>
-			<h2><?php esc_html_e( 'Contact sync is in progress.', 'makewebbetter-hubspot-for-woocommerce' ); ?></h2>
-			<span class="psync_desc"> <?php esc_html_e( 'This should only take a few moments. Thanks for your patience!', 'makewebbetter-hubspot-for-woocommerce' ); ?></span>
+			<a href="<?php echo esc_url( wp_nonce_url( '?page=hubwoo&hubwoo_tab=hubwoo-sync-contacts&action=hubwoo-osc-schedule-sync', 'hubwoo_osc_schedule_sync' ) ); ?>" id = "hubwoo-osc-schedule-sync" style="display: none;" class="hubwoo-osc-schedule-sync hubwoo__btn"><?php esc_html_e( 'Schedule Sync', 'makewebbetter-hubspot-for-woocommerce' ); ?></a>
 		</div>
-		<div class="hubwoo-progress">
-			<div class="hubwoo-progress-bar" role="progressbar" style="width:0"></div>
-		</div>
-	</div>				
+	</form>
 </div>

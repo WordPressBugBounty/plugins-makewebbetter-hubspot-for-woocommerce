@@ -50,13 +50,12 @@
 			};
 
 			const createGroupsToHS = ( groupName, type ) => {
-				let action         = '';
-
-				if ( type == 'contact' ) {
-					action = 'hubwoo_create_property_group';
-				} else if ( type == 'deal' ) {
-					action = 'hubwoo_deals_create_group';
-				}
+				// Only 'contact' is ever passed in -- deal properties are
+				// created directly via hubwoo_deals_create_property(), which
+				// batches them straight to HubSpot with no separate
+				// group-creation step (unlike contacts), so there's no
+				// 'hubwoo_deals_create_group' PHP handler to call here.
+				let action = ( type == 'contact' ) ? 'hubwoo_create_property_group' : '';
 
 				const groupData = {
 					action,
@@ -65,21 +64,34 @@
 					hubwooSecurity,
 				};
 
+				// Never rejects -- a group already existing on this portal (e.g. it
+				// was connected here before) is a normal, complete outcome, and an
+				// unrecognised response shouldn't be allowed to stop the rest of
+				// onboarding either. The caller only needs `handled` to decide
+				// whether to count this group as done.
 				return new Promise(
-					( resolve, reject ) => {
+					( resolve ) => {
                     jQuery.ajax( { url: ajaxUrl, type: 'POST', data: groupData } )
 						.done(
 							( groupResponse ) => {
                                 const groupRes = jQuery.parseJSON( groupResponse );
                                 groupRes.name  = groupName;
-                                if ( groupRes.status_code == 201 || groupRes.status_code == 409 ) {
+                                groupRes.handled = ( groupRes.status_code == 201 || groupRes.status_code == 200 || groupRes.already_exists );
+
+                                if ( groupRes.handled ) {
                                     dataCounter.totalGrpPrCreated += 1;
                                     dataCounter.percentage         = ( ( dataCounter.totalGrpPrCreated / dataCounter.totalCount ) * 100 ).toFixed( 0 );
                                     updateProgressBar( dataCounter.percentage );
-                                    resolve( groupRes );
-                                } else {
-                                	reject( groupRes );
                                 }
+
+                                resolve( groupRes );
+							},
+						)
+						.fail(
+							() => {
+                                // Network-level failure -- still don't block the
+                                // rest of onboarding over a single group.
+                                resolve( { name: groupName, handled: false } );
 							},
 						);
 					},
@@ -167,13 +179,9 @@
 			};
 
 			const runEcommSetup = async () => {
-				
-				const totalProducts = jQuery( '.hubwoo-info' ).data( 'products' );
-				await jQuery.ajax( { url: ajaxUrl, type: 'POST', data: { action: 'hubwoo_ecomm_setup', hubwooSecurity, process: 'start-products-sync' } } );
-				if(dataCounter.setupRunning) { updateProgressBar( 95 ) }
 				let response = await jQuery.ajax( { url: ajaxUrl, type: 'POST', data: { action: 'hubwoo_ecomm_setup', hubwooSecurity, process: 'update-deal-stages' } } );
 
-				return response				
+				return response
 			}
 
 
@@ -282,63 +290,21 @@
 						jQuery('#hubwoo-usr-spin').hide()
 						jQuery( '.hubwoo-ocs-btn-notice' ).text( message + ' ready to be synced over HubSpot' );
 						if ( totalUsers > 0 ) {
-							jQuery( '.hubwoo-osc-instant-sync' ).attr( 'data-total_users', totalUsers );
-							jQuery( '#hubwoo-osc-instant-sync' ).fadeIn();
-							jQuery( '#hubwoo-osc-schedule-sync' ).hide();							
+							jQuery( '#hubwoo-osc-schedule-sync' ).fadeIn();
 						} else {
 							jQuery( '.hubwoo-ocs-btn-notice' ).delay( 1500 ).slideDown( 5000 );
 							jQuery( '.hubwoo-ocs-btn-notice' ).text( 'We could not find any user / order, please try changing the filters' );
-							jQuery( '#hubwoo-osc-instant-sync' ).hide();
 							jQuery( '#hubwoo-osc-schedule-sync' ).hide();
-						}
-
-						if ( totalUsers > 500 ) {
-							jQuery( '#hubwoo-osc-schedule-sync' ).fadeIn();
-							jQuery( '#hubwoo-osc-instant-sync' ).hide();
 						}
 
 						const userRoles = jQuery( '#hubwoo_customers_role_settings' ).val();
 
 						if ( userRoles === undefined || userRoles.length === 0 ) {
 							jQuery( '.hubwoo-ocs-btn-notice' ).hide();
-							jQuery( '#hubwoo-osc-instant-sync' ).hide();
 							jQuery( '#hubwoo-osc-schedule-sync' ).hide();
 						}
 					},
 				);
-			};
-			const startContactSync      = async( step, progress ) => {
-				const response          = await jQuery.ajax(
-					{
-						type: 'POST',
-						url: ajaxUrl,
-						data: {
-							action: 'hubwoo_ocs_instant_sync',
-							step,
-							hubwooSecurity,
-						},
-						dataType: 'json',
-					},
-				).fail(
-					( response ) => {
-                    updateProgressBar( response.progress, 2 );
-                    saveUpdates( [ 'hubwoo_total_ocs_need_sync' ], 'delete' );
-					},
-				);
-
-				if ( 100 == response.progress && response.propertyError != true ) {
-					updateProgressBar( response.progress );
-					jQuery( '.hubwoo-progress-notice' ).html( hubwooOcsSuccess );
-					jQuery( 'a#hubwoo-osc-instant-sync' ).hide();
-					await saveUpdates( { 'hubwoo_greeting_displayed_setup': 'yes' } );
-					location.reload();
-				} else if ( response.propertyError == true ) {
-					updateProgressBar( 100, 2 );
-					saveUpdates( [ 'hubwoo_total_ocs_need_sync' ], 'delete' );
-				} else {
-					updateProgressBar( Math.ceil( response.progress ) );
-					startContactSync( parseInt( response.step ), parseInt( response.progress ) );
-				}
 			};
 
 			const getDealsUsersToSync = async() => {
@@ -351,7 +317,11 @@
 					jQuery( '.manage_deals_ocs' ).fadeIn();
 				} else {
 					jQuery( '.manage_deals_ocs' ).hide();
-					jQuery( '.deal-sync_progress' ).hide();
+					// Scoped to the deal-sync progress bar's own container -- a bare
+					// '.deal-sync_progress' selector also matches the unrelated
+					// contact-sync notice's progress bar (admin/templates/hubwoo-main-template.php),
+					// which reuses the same class name, and would hide it too on this tab.
+					jQuery( '.hubwoo-group-wrap__deal_notice[data-type="pBar"] .deal-sync_progress' ).hide();
 					message = 'No Orders found for the selected order statuses';
 				}
 				if(jQuery('#hubwoo_ecomm_order_date_allow').is(':checked')) {
@@ -432,6 +402,15 @@
 				setTimeout(
 					function() {
 						jQuery( '.hubwoo_pop_up_wrap' ).slideDown( 'slow' );
+					},
+					1000
+				);
+			}
+
+			if ( jQuery( '#hubwoo_show_hpos_lock' ).val() == 'true' ) {
+				setTimeout(
+					function() {
+						jQuery( '.hubwoo-hpos-lock-popup' ).slideDown( 'slow' );
 					},
 					1000
 				);
@@ -926,6 +905,14 @@
 				},
 			);
 
+			jQuery( '#recreate-ecomm-pipeline' ).click(
+				async( e ) => {
+                e.preventDefault();
+                await runEcommSetup();
+                window.location.reload( true );
+				},
+			);
+
 			jQuery( '.hubwoo-create-single-workflow-data' ).on(
 				'click',
 				function() {
@@ -950,7 +937,15 @@
 									ajaxUrl,
 									{ action: 'hubwoo_create_single_workflow', name, hubwooSecurity },
 									function( response ) {
-										const proresponse   = jQuery.parseJSON( response );
+										const proresponse = jQuery.parseJSON( response );
+
+										if ( ! proresponse ) {
+											alert( hubwooWentWrong );
+											manageSpinText( job, 'remove', 'failed' );
+											tab.removeClass( 'align-big' ).addClass( 'hubwoo-align-class' );
+											return;
+										}
+
 										const proerrors     = proresponse.errors;
 										const prohubMessage = '';
 
@@ -1117,25 +1112,6 @@
 			);
 
 			jQuery( '.date-picker' ).datepicker( { dateFormat: 'dd-mm-yy', maxDate: 0, changeMonth: true, changeYear: true } );
-
-			jQuery( document ).on(
-				'click',
-				'#hubwoo-osc-instant-sync',
-				async function( event ) {
-					event.preventDefault();
-					jQuery( '#hubwoo-osc-instant-sync' ).hide();
-					const progress = 0;
-					jQuery( '#hubwoo-ocs-form' ).slideUp( 600 );
-					jQuery( '#hubwoo-osc-instant-sync' ).addClass( 'hubwoo-disable' );
-					jQuery( '#hubwoo-osc-schedule-sync' ).addClass( 'hubwoo-disable' );
-					jQuery( '.hubwoo-progress-wrap' ).css( 'display', 'block' );
-					const totalUsers = jQuery( '.hubwoo-osc-instant-sync' ).data( 'total_users' );
-					await saveUpdates( { 'hubwoo_total_ocs_need_sync': totalUsers } );
-					await saveUpdates( [ 'hubwoo_ocs_contacts_synced' ], 'delete' );
-					updateProgressBar( 0 );
-					startContactSync( 1, progress );
-				},
-			);
 
 			jQuery( '.hubwoo-date-picker' ).datepicker( { dateFormat: 'dd-mm-yy', maxDate: 0, changeMonth: true, changeYear: true } );
 
@@ -1383,15 +1359,11 @@
 				window.location.href = url
 			})
 
-			jQuery( '.manage_deals_ocs, .manage_contact_sync, .manage_product_sync' ).click(
+			jQuery( '.manage_deals_ocs, .manage_contact_sync' ).click(
 				async function() {
 					const syncAction = jQuery( this ).data( 'action' );
 					if ( syncAction !== undefined ) {
-						if( 'run-ecomm-setup' === syncAction ) {
-							await runEcommSetup();
-						} else {
-							await jQuery.post( ajaxUrl, { action: 'hubwoo_manage_sync', hubwooSecurity, process: syncAction } );
-						}
+						await jQuery.post( ajaxUrl, { action: 'hubwoo_manage_sync', hubwooSecurity, process: syncAction } );
 						window.location.reload( true );
 					}
 				},
@@ -1721,16 +1693,13 @@
 						
 						for (let i = selectedGroups.length - 1; i >= 0; i--) {
 							const singleCreatedGroup = await createGroupsToHS( selectedGroups[i], 'contact' );
-							let groupName            = null;
 
-							if ( singleCreatedGroup.status_code == 200 ) {
-								groupName = singleCreatedGroup.name;
-							} else if ( singleCreatedGroup.status_code == 409 ) {
-								groupName = singleCreatedGroup.name;
-							} else if ( singleCreatedGroup.status_code == 201 ) {
-								groupName = singleCreatedGroup.name;
+							// Created, or already existed on this portal -- either way it's
+							// there now. Anything else is skipped quietly so one bad
+							// response doesn't stop the rest of onboarding.
+							if ( singleCreatedGroup.handled ) {
+								allCreatedGroups.push( singleCreatedGroup.name );
 							}
-							allCreatedGroups.push( groupName );
 						}
 						
 						for (let i = allCreatedGroups.length - 1; i >= 0; i--) {
@@ -1772,7 +1741,10 @@
 	                                    );
 	                                }
 	                            } catch ( errors ) {
-									console.error( errors );
+									// A chunk that didn't come back as 201/207 shouldn't
+									// stop the rest of onboarding, and this isn't worth
+									// alarming the console over -- every API call here is
+									// already logged server-side via create_log().
 									continue;
 								}
 							}
@@ -1781,370 +1753,133 @@
 						const deal_property = await jQuery.ajax({ type : 'POST', url  : ajaxUrl, data : { action : 'hubwoo_deals_create_property', hubwooSecurity, }, dataType : 'json', });
 						
 					allCreatedProperties = allCreatedProperties.map((prop) => { return prop.replace(/["']/g, "").trim()})
-					await saveUpdates( { 'hubwoo-groups-created': allCreatedGroups, 'hubwoo-properties-created': allCreatedProperties, 'hubwoo_fields_setup_completed': 1, 'hubwoo_pro_setup_completed': 1, 'hubwoo_plugin_version': '1.6.7' } );
-					await runEcommSetup();
+					await saveUpdates( { 'hubwoo-groups-created': allCreatedGroups, 'hubwoo-properties-created': allCreatedProperties, 'hubwoo_fields_setup_completed': 1, 'hubwoo_pro_setup_completed': 1, 'hubwoo_plugin_version': '1.6.8' } );
+					try {
+						await runEcommSetup();
+					} catch ( error ) {
+						// Don't let a pipeline/deal-stage setup problem leave the
+						// onboarding progress bar stuck -- the server side already
+						// falls back to an existing pipeline when it can, so this is
+						// a last-resort safety net for anything unexpected.
+						console.error( 'Ecommerce pipeline setup did not complete, continuing onboarding:', error );
+					}
 					updateProgressBar( 100 );
 					transferScreen( 'move-to-list' );
 				}
 				},
 			);
 
-			/* CSV creation and syncing of products, contacts, deals start. */
-			jQuery( document ).on(
-				'click',
-				'#hubwoo-osc-instant-sync-historical',
-				async function( event ) {
-					event.preventDefault();
-					jQuery( '#hubwoo-osc-instant-sync-historical' ).hide();
-					const progress = 0;
-					jQuery( '#hubwoo-ocs-form' ).slideUp( 600 );
-					jQuery( '#hubwoo-osc-instant-sync' ).addClass( 'hubwoo-disable' );
-					jQuery( '#hubwoo-osc-schedule-sync' ).addClass( 'hubwoo-disable' );
-					jQuery( '.hubwoo-progress-wrap' ).css( 'display', 'block' );
-					jQuery( '#hubwoo-osc-schedule-sync' ).css( 'display', 'none' );
-					updateProgressBar( 0 );
-					
-					checkHistoricalData( 1, progress );
-					
-				},
-			);
-
-
-			const checkHistoricalData = async( step, progress ) => {
-				const response = await jQuery.ajax(
-					{
-						type : 'POST',
-						url  : ajaxUrl,
-						data : {
-							action : 'hubwoo_ocs_historical_contact',
-							step,
-							hubwooSecurity,
-						},
-						dataType : 'json',
-					}
-				).fail(
-					( response ) => {
-						updateProgressBar ( response.progress, 2 );
-					}
-				);
-
-				var max_item = Math.ceil( response.max_time / 100);
-
-				if ( 0 == response.progress && response.propertyError != true && response.status == true ) {
-					updateProgressBar( response.progress );
-					var con_batches = Math.ceil( response.contact / max_item );
-					var con_batch_count = 1;
-					var con_bar_update  = parseFloat( 100 / con_batches );
-					con_bar_update = parseFloat( con_bar_update.toFixed(2) );
-					var con_progress_bar  = parseFloat( 0 );
-					var con_deal_response = '';
-					var con_get_vid = 'process_request';
-					
-					while ( con_batch_count <= con_batches ) {
-
-						con_progress_bar += con_bar_update;
-						con_progress_bar = parseFloat( con_progress_bar.toFixed(2) );
-	
-						if ( con_batch_count == con_batches ) {
-							con_progress_bar = 100;
-							con_get_vid = 'final_request';
-						}
-						
-						con_deal_response = await bulkContactSync( 1, con_progress_bar, max_item, con_get_vid );
-						con_batch_count++;
-	
-					}
-					
-
-				} else if( 100 == response.progress && response.propertyError != true && response.status == true ) {
-					con_get_vid = 'final_request';
-					await bulkContactSync( 1, response.progress, max_item, con_get_vid );
-				} else if (  response.propertyError == true ) {
-					updateProgressBar( 100, 2 );
-
-				} else {
-					con_get_vid = 'final_request';
-					updateProgressBar( Math.ceil( response.progress ) );
-					bulkContactSync( parseInt( response.step ), parseInt( response.progress ), max_item, con_get_vid );
-				}
-			};
-
-			const bulkContactSync = async( step, progress, max_item, con_get_vid ) => {
-				
-				const response = await jQuery.ajax(
-					{
-						type : 'POST',
-						url  : ajaxUrl,
-						data : {
-							action : 'hubwoo_historical_contact_sync',
-							step,
-							hubwooSecurity,
-							max_item,
-							con_get_vid,
-						},
-						dataType : 'json',
-					}
-				).fail(
-					( response ) => {
-						updateProgressBar ( response.progress, 2 );
-					}
-				);
-
-				if ( 100 == progress && response.propertyError != true && response.status == true ) {
-					updateProgressBar( progress );
-					jQuery( '.hubwoo-progress-wrap' ).children( 'p' ).append( '<strong>Completed !</strong>' );
-					
-					if ( 'false' == response.skip_product ) {
-						jQuery( '.hubwoo-progress-wrap-import .hubwoo-progress-bar' ).css( 'width', 0 + '%' );
-						jQuery( '.hubwoo-progress-wrap-import .hubwoo-progress-bar' ).html( 0 + '%' );
-						jQuery( '.hubwoo-progress-wrap-import' ).show(500);
-					} else {
-						jQuery( '.hubwoo-progress-wrap-import-deals p strong' ).html( '2. Syncing your Deals to HubSpot. This should only take a few moments. Thanks for your patience!' );
-					}
-
-					var total_prod  = response.total_prod;
-					var total_deals = response.total_deals;
-
-					if ( total_prod == 0 ) {
-						
-						jQuery( '.hubwoo-progress-wrap-import .hubwoo-progress-bar' ).css( 'width', 100 + '%' );
-						jQuery( '.hubwoo-progress-wrap-import .hubwoo-progress-bar' ).html( 100 + '%' );
-						jQuery( '.hubwoo-progress-wrap-import' ).children( 'p' ).append( '<strong>Completed !</strong>' );
-
-						if ( total_deals != 0 ) {
-
-							jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).css( 'width', 0 + '%' );
-							jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).html( 0 + '%' );
-							jQuery( '.hubwoo-progress-wrap-import-deals' ).show(1000);
-
-							await deals_check( total_deals, max_item );
-						} else if ( total_deals == 0 ) {
-							jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).css( 'width', 100 + '%' );
-							jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).html( 100 + '%' );
-							jQuery( '.hubwoo-progress-wrap-import-deals' ).show(1000);
-							jQuery( '.hubwoo-progress-wrap-import-deals' ).children( 'p' ).append( '<strong>Completed !</strong>' );
-
-							jQuery( '.hubwoo-progress-notice' ).html( hubwooOcsSuccess );
-							await saveUpdates( { 'hubwoo_greeting_displayed_setup': 'yes' } );
-							setTimeout(function(){ location.reload();}, 3000 );
-						}
-					
-					} else {
-
-						var pro_batches = Math.ceil( total_prod / max_item );
-						var batch_count = 1;
-						var bar_update = parseFloat( 100 / pro_batches );
-						bar_update = parseFloat( bar_update.toFixed(2) );
-						var progress_bar = parseFloat( 0 );
-						var last_request = false;
-						var bulk_pro_response = '';
-						var total_deals = '';
-						var pro_get_vid = 'process_request';
-						
-						while ( batch_count <= pro_batches ) {			
-							
-							progress_bar += bar_update;
-  							progress_bar = parseFloat( progress_bar.toFixed(2) );
-							
-							if ( batch_count == pro_batches ){
-								progress_bar = 100;
-								last_request = true;
-								pro_get_vid = 'final_request';
-							}
-
-							bulk_pro_response = await bulkProductsSync( 1, progress_bar, last_request, max_item, pro_get_vid );
-							total_deals = bulk_pro_response.total_deals;
-							batch_count++;
-						}
-						
-						if ( 100 == progress_bar ) {
-							jQuery( '.hubwoo-progress-wrap-import' ).children( 'p' ).append( '<strong>Completed !</strong>' );		
-							jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).css( 'width', 0 + '%' );
-							jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).html( 0 + '%' );
-							jQuery( '.hubwoo-progress-wrap-import-deals' ).show(1000);
-							
-							if ( true == last_request && total_deals == 0 ) {
-
-								jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).css( 'width', 100 + '%' );
-								jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).html( 100 + '%' );
-								jQuery( '.hubwoo-progress-wrap-import-deals' ).children( 'p' ).append( '<strong>Completed !</strong>' );		
-								
-							} else {
-
-								await deals_check( total_deals, max_item );
-							}
-							
-						}
-					}
-
-				} else if ( response.propertyError == true ) {
-					updateProgressBar( 100, 2 );
-				} else {
-					updateProgressBar( Math.ceil( progress ) );
-					// bulkContactSync( parseInt( response.step ), parseInt( response.progress ) );
-				}
-
-				return response;
-			}
-
-			const bulkProductsSync = async( step, progress, last_request, max_item, pro_get_vid ) => {
-				const response = await jQuery.ajax(
-					{
-						type : 'POST',
-						url  : ajaxUrl,
-						data : {
-							action : 'hubwoo_historical_products_import',
-							step,
-							hubwooSecurity,
-							last_request,
-							max_item,
-							pro_get_vid,
-						},
-						dataType : 'json',
-					}
-				).fail(
-					( response ) => {
-						jQuery( '.hubwoo-progress-notice' ).html( hubwooOcsError );
-						jQuery( '.hubwoo-progress-wrap-import .hubwoo-progress-bar' ).addClass( 'hubwoo-progress-error' );
-						jQuery( '.hubwoo-progress-wrap-import .hubwoo-progress-bar' ).css( 'width', '100%' );
-						jQuery( '.hubwoo-progress-wrap-import .hubwoo-progress-bar' ).html( 'Failed! Please check error log or contact support' );
-					}
-				);
-
-				if ( true == response.status && response.propertyError != true && response.status == true ) {
-					jQuery( '.hubwoo-progress-wrap-import .hubwoo-progress-bar' ).css( 'width', progress + '%' );
-					jQuery( '.hubwoo-progress-wrap-import .hubwoo-progress-bar' ).html( progress + '%' );
-					jQuery( '.hubwoo-progress-wrap-import' ).show(500);
-				
-				} else if ( response.propertyError == true ) {
-					jQuery( '.hubwoo-progress-notice' ).html( hubwooOcsError );
-					jQuery( '.hubwoo-progress-wrap-import .hubwoo-progress-bar' ).addClass( 'hubwoo-progress-error' );
-					jQuery( '.hubwoo-progress-wrap-import .hubwoo-progress-bar' ).css( 'width', '100%' );
-					jQuery( '.hubwoo-progress-wrap-import .hubwoo-progress-bar' ).html( 'Failed! Please check error log or contact support' );
-				} else {
-					jQuery( '.hubwoo-progress-notice' ).html( hubwooOcsError );
-					jQuery( '.hubwoo-progress-wrap-import .hubwoo-progress-bar' ).addClass( 'hubwoo-progress-error' );
-					jQuery( '.hubwoo-progress-wrap-import .hubwoo-progress-bar' ).css( 'width', '100%' );
-					jQuery( '.hubwoo-progress-wrap-import .hubwoo-progress-bar' ).html( 'Failed! Please check error log or contact support' );
-				}
-
-				return response;
-			}
-
-			const bulkDealsSync = async( step, progress, max_item ) => {
-				
-				const response = await jQuery.ajax(
-					{
-						type : 'POST',
-						url  : ajaxUrl,
-						data : {
-							action : 'hubwoo_historical_deals_sync',
-							step,
-							hubwooSecurity,
-							max_item,
-						},
-						dataType : 'json',
-					}
-				).fail(
-					( response ) => {
-						jQuery( '.hubwoo-progress-notice' ).html( hubwooOcsError );
-						jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).addClass( 'hubwoo-progress-error' );
-						jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).css( 'width', '100%' );
-						jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).html( 'Failed! Please check error log or contact support' );
-					}
-				);
-
-				if ( true == response.status && response.propertyError != true && response.status == true ) {
-					jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).css( 'width', progress + '%' );
-					jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).html( progress + '%' );
-					jQuery( '.hubwoo-progress-wrap-import-deals' ).show(1000);
-				
-				} else if ( response.propertyError == true ) {
-					jQuery( '.hubwoo-progress-notice' ).html( hubwooOcsError );
-					jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).addClass( 'hubwoo-progress-error' );
-					jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).css( 'width', '100%' );
-					jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).html( 'Failed! Please check error log or contact support' );
-				} else {
-					jQuery( '.hubwoo-progress-notice' ).html( hubwooOcsError );
-					jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).addClass( 'hubwoo-progress-error' );
-					jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).css( 'width', '100%' );
-					jQuery( '.hubwoo-progress-wrap-import-deals .hubwoo-progress-bar' ).html( 'Failed! Please check error log or contact support' );
-
-				}
-			}
-
-			const deals_check = async( total_deals, max_item ) => {
-			
-				var deal_batches = Math.ceil( total_deals / max_item );
-				var deal_batch_count = 1;
-				var deal_bar_update  = parseFloat( 100 / deal_batches );
-				deal_bar_update  = parseFloat( deal_bar_update.toFixed(2) );
-				var deal_progress_bar  = parseFloat( 0 );
-				var bulk_deal_response = '';
-
-				while ( deal_batch_count <= deal_batches ) {
-					
-					deal_progress_bar += deal_bar_update;
-					deal_progress_bar = parseFloat( deal_progress_bar.toFixed(2) );
-
-					if ( deal_batch_count == deal_batches ) {
-						deal_progress_bar = 100;
-
-					}
-
-					bulk_deal_response = await bulkDealsSync( 1, deal_progress_bar, max_item );
-					deal_batch_count++;
-
-					if ( 100 == deal_progress_bar ) {
-						jQuery( '.hubwoo-progress-wrap-import-deals' ).children( 'p' ).append( '<strong>Completed !</strong>' );		
-						jQuery( '.hubwoo-progress-notice' ).html( hubwooOcsSuccess );
-						await saveUpdates( { 'hubwoo_greeting_displayed_setup': 'yes' } );
-						location.reload();
-					}
-				}
-			}
-
 			if( new URLSearchParams(window.location.search).get('hubwoo_tab') == 'hubwoo-logs') {
-		    	
+
 				var ajax_url = ajaxUrl + '?action=hubwoo_get_datatable_data&hubwooSecurity='+hubwooSecurity;
 
-				jQuery('#hubwoo-table').dataTable({
+				var hubwooLogsTable = jQuery('#hubwoo-table').DataTable({
 				  "processing": true,
 				  "serverSide": true,
 				  "ajax": ajax_url,
 				  "dom": 'f<"bottom">tr<"bottom"ilp>',
 				  "ordering": false,
+				  // The "dt-responsive" class on the table auto-activates the bundled
+				  // Responsive extension, which binds its own click handler to the
+				  // same td.dtr-control cells we use for manual expand/collapse below.
+				  // Left enabled, both handlers fire on every click and cancel each
+				  // other out (Responsive opens its own child row, then our handler
+				  // immediately sees it as shown and closes it), so the row never
+				  // stays expanded. Explicitly disabling it here is the only way to
+				  // override that auto-activation, since it otherwise ignores this
+				  // option and turns on anyway.
+				  "responsive": false,
+				  "columnDefs": [
+					{ "targets": 0, "orderable": false, "className": "dtr-control", "data": null, "defaultContent": "" },
+					// Columns 1-3 (event, CRM object, timestamp) are inserted into
+					// the DOM via DataTables' default rendering, which does not
+					// escape cell content -- unlike columns 4/5 (Request/Response),
+					// which are already escaped via hubwooEscapeHtml() in the
+					// expand/collapse child-row handler below. Match that here so
+					// nothing reaches the DOM unescaped.
+					{ "targets": [1, 2, 3], "render": function (data) { return hubwooEscapeHtml(data); } }
+				  ],
 				  language: {
 						"lengthMenu": "Rows per page _MENU_",
 						"info": "_START_ - _END_ of _TOTAL_",
-					
+						"search": "",
+						"searchPlaceholder": "Search logs...",
 					   paginate: {
 						  next: '<svg width="8" height="12" viewBox="0 0 8 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M1.99984 0L0.589844 1.41L5.16984 6L0.589844 10.59L1.99984 12L7.99984 6L1.99984 0Z" fill="#8E908F"/></svg>',
 						  previous: '<svg width="8" height="12" viewBox="0 0 8 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M6.00016 12L7.41016 10.59L2.83016 6L7.41016 1.41L6.00016 -1.23266e-07L0.000156927 6L6.00016 12Z" fill="#8E908F"/></svg>'
 						}
 				  }
-				});	
+				});
+
+				// Manual expand/collapse: don't rely on DataTables Responsive's
+				// "collapsed" auto-detection, which only triggers when the browser
+				// decides columns must be hidden for lack of width — on a normal
+				// admin screen that rarely happens, so the "+" would sit inert.
+				var hubwooEscapeHtml = function (value) {
+					return jQuery('<div>').text(value === null || value === undefined ? '' : value).html();
+				};
+
+				var hubwooFormatLogValue = function (value) {
+					var text = value;
+					try {
+						text = JSON.stringify(JSON.parse(value), null, 2);
+					} catch (e) {
+						text = value;
+					}
+					return '<pre>' + hubwooEscapeHtml(text) + '</pre>';
+				};
+
+				jQuery('#hubwoo-table').on('click', 'tbody td.dtr-control', function () {
+					var tr  = jQuery(this).closest('tr');
+					var row = hubwooLogsTable.row(tr);
+
+					if (row.child.isShown()) {
+						row.child.hide();
+						tr.removeClass('parent');
+						return;
+					}
+
+					var rowData = row.data();
+					if (!rowData) {
+						return;
+					}
+
+					row.child(
+						'<div class="hubwoo-log-detail">' +
+							'<p><strong>Request</strong></p>' + hubwooFormatLogValue(rowData[4]) +
+							'<p><strong>Response</strong></p>' + hubwooFormatLogValue(rowData[5]) +
+						'</div>'
+					).show();
+					tr.addClass('parent');
+				});
 			}
 
 			jQuery(document).on('click', '#hubwoo-download-log', async function(e){
 				e.preventDefault();
-				var button = jQuery(this);
-				button.addClass('hubwoo-btn__loader');
-				const response = await jQuery.ajax(
-					{
-						type : 'POST',
-						url  : ajaxUrl,
-						data : {
-							action : 'hubwoo_download_sync_log',
-							hubwooSecurity,
-						},
-						dataType : 'json',
-					}
-				);
-				if ( response.success ) {
-					button.removeClass('hubwoo-btn__loader');
-					window.location.href = response.redirect;
+				jQuery('.hubwoo-wrap').addClass('hubwoo-loading');
+				
+				var currentSearch = '';
+				if (typeof hubwooLogsTable !== 'undefined') {
+					currentSearch = hubwooLogsTable.search();
 				}
+
+				jQuery.ajax({
+					url : ajaxUrl,
+					type : 'POST',
+					data : {
+						action : 'hubwoo_download_sync_log',
+						hubwooSecurity : hubwooSecurity,
+						search : currentSearch
+					},
+					success : function(response) {
+						if ( response.success ) {
+							window.location.href = response.redirect;
+						}
+					},
+					complete : function() {
+						jQuery('.hubwoo-wrap').removeClass('hubwoo-loading');
+					}
+				});
 			});
 
 			jQuery(document).on('click', '#hubwoo-clear-log', async function(e){

@@ -212,22 +212,6 @@ class HubWooContactProperties {
 	}
 
 	/**
-	 * Add subscription groups.
-	 *
-	 * @param array $values predefined groups.
-	 * @return Array Properties array with there associated group.
-	 * @since 1.0.0
-	 */
-	public static function _get_subs_groups( $values = array() ) {
-
-		$values[] = array(
-			'name'        => 'subscriptions_details',
-			'label' => __( 'Subscriptions Details', 'makewebbetter-hubspot-for-woocommerce' ),
-		);
-		return apply_filters( 'hubwoo_subs_groups', $values );
-	}
-
-	/**
 	 * Check for the active groups and get there properties.
 	 *
 	 * @param bool $all to get all propertues or not.
@@ -3393,7 +3377,7 @@ class HubWooContactProperties {
 		$all_wc_statuses = array();
 
 		// get all statuses.
-		$all_status = wc_get_order_statuses();
+		$all_status = Hubwoo::hubwoo_get_valid_order_statuses();
 
 		// if status available.
 		if ( is_array( $all_status ) && count( $all_status ) ) {
@@ -3513,13 +3497,13 @@ class HubWooContactProperties {
 
 		if ( ! empty( $last_order_id ) ) {
 
-			$order = new WC_Order( $last_order_id );
+			$order = wc_get_order( $last_order_id );
 
 			$key = 0;
 
 			$last_order_products = array();
 
-			if ( ! empty( $order ) || ! is_wp_error( $order ) ) {
+			if ( $order && ! is_wp_error( $order ) ) {
 
 				$order_items = $order->get_items();
 
@@ -3537,7 +3521,7 @@ class HubWooContactProperties {
 
 							$product = wc_get_product( $item_id );
 
-							if ( get_post_status( $item_id ) == 'trash' || get_post_status( $item_id ) == false ) {
+							if ( ! $product || get_post_status( $item_id ) == 'trash' || get_post_status( $item_id ) == false ) {
 
 								continue;
 							}

@@ -63,7 +63,7 @@ if ( 'yes' == get_option( 'hubwoo_ecomm_pipeline_created', 'no' ) ) {
 						</tr>
 					</thead>
 					<tbody>
-						<?php $all_order_statuses = wc_get_order_statuses(); ?>
+						<?php $all_order_statuses = Hubwoo::hubwoo_get_valid_order_statuses(); ?>
 						<?php
 						foreach ( $all_order_statuses as $order_key => $order_label ) {
 							$stage = Hubwoo::get_selected_deal_stage( $order_key );

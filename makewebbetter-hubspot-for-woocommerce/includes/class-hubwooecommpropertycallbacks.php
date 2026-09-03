@@ -206,65 +206,6 @@ class HubwooEcommPropertyCallbacks {
 	}
 
 	/**
-	 * Create user date.
-	 *
-	 * @since 1.0.0
-	 * @return string user registered date
-	 */
-	public function hubwoo_create_date() {
-
-		$create_date      = '';
-		$customer         = new WP_User( $this->_object_id );
-		$account_creation = isset( $customer->data->user_registered ) ? $customer->data->user_registered : '';
-		if ( ! empty( $account_creation ) ) {
-			$account_creation = strtotime( $account_creation );
-		}
-		if ( ! empty( $account_creation ) ) {
-			$create_date = HubwooObjectProperties::get_instance()->hubwoo_set_utc_midnight( $account_creation );
-		}
-		return $create_date;
-	}
-
-	/**
-	 * Get contact lifecycle stage
-	 *
-	 * @return string    customer lifecycle stage
-	 * @since 1.0.0
-	 */
-	public function hubwoo_contact_stage() {
-
-		$stage = '';
-
-		$orders_count = 0;
-
-		//hpos changes
-		$query = new WC_Order_Query(array(
-			'posts_per_page'      => -1,
-			'post_status'         => array_keys( wc_get_order_statuses() ),
-			'order'               => 'desc',
-			'post_parent'         => 0,
-			'customer_id'	  	  => $this->_object_id,
-		));
-
-		$customer_orders = $query->get_orders();
-
-		if ( is_array( $customer_orders ) && count( $customer_orders ) ) {
-
-			$orders_count = count( $customer_orders );
-		}
-
-		if ( $orders_count > 0 ) {
-
-			$stage = 'customer';
-		} else {
-
-			$stage = 'lead';
-		}
-
-		return $stage;
-	}
-
-	/**
 	 * Callback for products objects
 	 *
 	 * @param string $key meta key.
@@ -297,6 +238,31 @@ class HubwooEcommPropertyCallbacks {
 
 				case 'pr_description':
 					$value = $product->get_short_description();
+					if ( empty( $value ) ) {
+						// No short description set -- fall back to the full
+						// product description rather than silently omitting
+						// this property from the sync payload entirely (see
+						// the ! empty() filter in
+						// HubwooEcommObject::prepare_modified_fields()).
+						$value = $product->get_description();
+					}
+					if ( empty( $value ) && $product->is_type( 'variation' ) ) {
+						// Variations are synced as their own independent
+						// PRODUCT records, but WC_Product_Variation doesn't
+						// inherit description/short_description from its
+						// parent the way it does for SKU/price/etc. --
+						// merchants also rarely fill in a per-variation
+						// description, so fall back to the parent product's
+						// description rather than leaving this blank on
+						// every variation.
+						$parent_product = wc_get_product( $product->get_parent_id() );
+						if ( $parent_product instanceof WC_Product ) {
+							$value = $parent_product->get_short_description();
+							if ( empty( $value ) ) {
+								$value = $parent_product->get_description();
+							}
+						}
+					}
 					break;
 
 				case 'store_product_id':
@@ -404,24 +370,6 @@ class HubwooEcommPropertyCallbacks {
 		}
 
 		return $value;
-	}
-
-	/**
-	 * Format an array in hubspot accepted enumeration value.
-	 *
-	 * @param  array $properties  Array of values.
-	 * @return string  formatted string.
-	 * @since 1.0.0
-	 */
-	public static function hubwoo_ecomm_format_array( $properties ) {
-
-		if ( is_array( $properties ) ) {
-
-			$properties = array_unique( $properties );
-			$properties = implode( ',', $properties );
-		}
-
-		return $properties;
 	}
 
 	/**

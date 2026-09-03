@@ -107,7 +107,17 @@ class HubWooCustomer {
 	 */
 	public function get_user_data_properties( $properties ) {
 
+		// WordPress core's first_name/last_name usermeta is only populated
+		// automatically when an account is created via checkout
+		// (wc_create_new_customer() copies it from the billing fields) --
+		// an account created any other way (plain WP registration, an
+		// admin-created user, an import, SSO) never gets these set, even
+		// though billing_first_name/billing_last_name usually is. Fall back
+		// to those rather than dropping the name from the sync entirely.
 		$fname = get_user_meta( $this->_contact_id, 'first_name', true );
+		if ( empty( $fname ) ) {
+			$fname = get_user_meta( $this->_contact_id, 'billing_first_name', true );
+		}
 		if ( ! empty( $fname ) ) {
 			$properties[] = array(
 				'property' => 'firstname',
@@ -116,6 +126,9 @@ class HubWooCustomer {
 		}
 
 		$lname = get_user_meta( $this->_contact_id, 'last_name', true );
+		if ( empty( $lname ) ) {
+			$lname = get_user_meta( $this->_contact_id, 'billing_last_name', true );
+		}
 		if ( ! empty( $lname ) ) {
 			$properties[] = array(
 				'property' => 'lastname',
@@ -198,7 +211,7 @@ class HubWooCustomer {
 			}
 		}
 
-		if ( $prop_index ) {
+		if ( false !== $prop_index ) {
 			$properties[ $prop_index ]['value'] = $customer_new_order_flag;
 		} else {
 			$properties[] = array(

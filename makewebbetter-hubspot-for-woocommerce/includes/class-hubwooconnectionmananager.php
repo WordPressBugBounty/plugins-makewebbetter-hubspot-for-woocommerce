@@ -66,6 +66,25 @@ class HubWooConnectionMananager {
 	 */
 	public function hubwoo_refresh_token( $hapikey, $hseckey ) {
 
+		// This is the single choke point every "is token expired?" check across
+		// the plugin (~22 call sites, plus several Action Scheduler jobs running
+		// every 3-5 minutes) eventually calls into. Two problems without these
+		// guards: (1) several of those triggers can land near the same expiry
+		// moment and race each other to refresh with the same soon-to-be-rotated
+		// refresh_token, causing spurious failures; (2) if the refresh_token is
+		// genuinely dead (revoked/rotated elsewhere), every trigger keeps retrying
+		// forever with no backoff, flooding the sync log with thousands of
+		// identical failed-refresh rows and slowing the whole site down.
+		if ( get_transient( 'hubwoo_token_refresh_lock' ) ) {
+			return false;
+		}
+
+		if ( get_transient( 'hubwoo_token_refresh_backoff' ) ) {
+			return false;
+		}
+
+		set_transient( 'hubwoo_token_refresh_lock', 1, 30 );
+
 		$endpoint = '/oauth/v1/token';
 
 		$refresh_token = get_option( 'hubwoo_pro_refresh_token', false );
@@ -86,7 +105,33 @@ class HubWooConnectionMananager {
 
 		$body = http_build_query( $data );
 
-		return $this->hubwoo_oauth_post_api( $endpoint, $body, 'refresh' );
+		$status = $this->hubwoo_oauth_post_api( $endpoint, $body, 'refresh' );
+
+		delete_transient( 'hubwoo_token_refresh_lock' );
+
+		if ( ! $status ) {
+			// Stop retrying every few minutes; wait 15 minutes before the next attempt.
+			set_transient( 'hubwoo_token_refresh_backoff', 1, 15 * MINUTE_IN_SECONDS );
+
+			// This background refresh runs completely on its own, from ~22
+			// call sites, with no user watching -- unlike the manual OAuth
+			// connect/reconnect flow (hubwoo_redirect_from_hubspot()), a
+			// failure here previously updated no admin-visible state at all,
+			// so syncing could silently stop for good (a genuinely dead
+			// refresh_token never recovers on its own) with nothing telling
+			// the admin they need to reconnect. Reuse the same flag/notice
+			// the manual flow already has wired up, instead of leaving this
+			// discoverable only by noticing sync had stopped.
+			update_option( 'hubwoo_connection_issue', 'yes', false );
+		} else {
+			// A later successful refresh means the connection is healthy
+			// again -- don't leave a stale "connection issue" notice showing
+			// after the problem (if it was ever more than transient) has
+			// resolved itself.
+			delete_option( 'hubwoo_connection_issue' );
+		}
+
+		return $status;
 	}
 
 	/**
@@ -138,35 +183,30 @@ class HubWooConnectionMananager {
 		if ( is_wp_error( $response ) ) {
 			$status_code = $response->get_error_code();
 			$res_message = $response->get_error_message();
+			$api_body    = null;
 		} else {
 			$status_code = wp_remote_retrieve_response_code( $response );
 			$res_message = wp_remote_retrieve_response_message( $response );
+			$api_body    = json_decode( wp_remote_retrieve_body( $response ) );
 		}
 
+		// Reflect the real status/message in every branch instead of a
+		// hardcoded 400 default, so the sync log shows what actually happened
+		// (timeout, invalid_grant, etc.) rather than a generic error every time.
 		$parsed_response = array(
-			'status_code' => 400,
-			'response'    => 'error',
+			'status_code' => $status_code,
+			'response'    => $res_message,
 		);
 
 		if ( 200 === $status_code ) {
 
-			$api_body = wp_remote_retrieve_body( $response );
-
-			if ( $api_body ) {
-				$api_body = json_decode( $api_body );
-			}
-
 			if ( ! empty( $api_body->refresh_token ) && ! empty( $api_body->access_token ) && ! empty( $api_body->expires_in ) ) {
 
-				update_option( 'hubwoo_pro_access_token', $api_body->access_token );
-				update_option( 'hubwoo_pro_refresh_token', $api_body->refresh_token );
-				update_option( 'hubwoo_pro_token_expiry', time() + $api_body->expires_in );
-				update_option( 'hubwoo_pro_valid_client_ids_stored', true );
-				$message         = esc_html__( 'Fetching and refreshing access token', 'makewebbetter-hubspot-for-woocommerce' );
-				$parsed_response = array(
-					'status_code' => $status_code,
-					'response'    => $res_message,
-				);
+				update_option( 'hubwoo_pro_access_token', $api_body->access_token, false );
+				update_option( 'hubwoo_pro_refresh_token', $api_body->refresh_token, false );
+				update_option( 'hubwoo_pro_token_expiry', time() + $api_body->expires_in, false );
+				update_option( 'hubwoo_pro_valid_client_ids_stored', true, false );
+				$message = esc_html__( 'Fetching and refreshing access token', 'makewebbetter-hubspot-for-woocommerce' );
 				$this->create_log( $message, $endpoint, $parsed_response, $action );
 
 				if ( 'access' === $action ) {
@@ -174,21 +214,20 @@ class HubWooConnectionMananager {
 					$this->hubwoo_pro_get_access_token_info();
 				}
 
-				update_option( 'hubwoo_pro_send_suggestions', true );
-				update_option( 'hubwoo_pro_oauth_success', true );
+				update_option( 'hubwoo_pro_send_suggestions', true, false );
+				update_option( 'hubwoo_pro_oauth_success', true, false );
 				return true;
 			}
 		} elseif ( 400 === $status_code ) {
-			$message = ! empty( $api_body['message'] ) ? $api_body['message'] : '';
+			$message = ! empty( $api_body->message ) ? $api_body->message : $res_message;
 		} elseif ( 403 === $status_code ) {
 			$message = esc_html__( 'You are forbidden to use this scope', 'makewebbetter-hubspot-for-woocommerce' );
 		} else {
 			$message = esc_html__( 'Something went wrong.', 'makewebbetter-hubspot-for-woocommerce' );
 		}
-		
-		update_option( 'hubwoo_pro_send_suggestions', false );
-		update_option( 'hubwoo_pro_api_validation_error_message', $message );
-		update_option( 'hubwoo_pro_valid_client_ids_stored', false );
+
+		update_option( 'hubwoo_pro_send_suggestions', false, false );
+		update_option( 'hubwoo_pro_valid_client_ids_stored', false, false );
 		$this->create_log( $message, $endpoint, $parsed_response, 'access_token' );
 		return false;
 	}
@@ -201,9 +240,10 @@ class HubWooConnectionMananager {
 	 */
 	public function hubwoo_pro_get_access_token_info() {
 
-		$access_token = Hubwoo::hubwoo_get_access_token();
-		$endpoint     = '/oauth/v1/access-tokens/' . $access_token;
-		$headers      = $this->get_token_headers();
+		$access_token  = Hubwoo::hubwoo_get_access_token();
+		$endpoint      = '/oauth/v1/access-tokens/' . $access_token;
+		$log_endpoint  = '/oauth/v1/access-tokens/[redacted]';
+		$headers       = $this->get_token_headers();
 
 		$response = wp_remote_get( $this->base_url . $endpoint, array( 'headers' => $headers ) );
 		if ( is_wp_error( $response ) ) {
@@ -220,7 +260,7 @@ class HubWooConnectionMananager {
 				$api_body = json_decode( $api_body, true );
 			}
 			if ( ! empty( $api_body['scopes'] ) ) {
-				update_option( 'hubwoo_pro_account_scopes', $api_body['scopes'] );
+				update_option( 'hubwoo_pro_account_scopes', $api_body['scopes'], false );
 			}
 		}
 
@@ -229,7 +269,7 @@ class HubWooConnectionMananager {
 			'status_code' => $status_code,
 			'response'    => $res_message,
 		);
-		$this->create_log( $message, $endpoint, $parsed_response, 'access_token' );
+		$this->create_log( $message, $log_endpoint, $parsed_response, 'access_token' );
 	}
 
 	/**
@@ -356,27 +396,67 @@ class HubWooConnectionMananager {
 						'headers' => $headers,
 					)
 				);
-				
+
 				/* translators: %s is the object type */
 				$message = esc_html__( 'Creating %s Groups', 'makewebbetter-hubspot-for-woocommerce' );
 				$message = sprintf( $message, $object_type );
 
-
+				$res_body = '';
 				if ( is_wp_error( $response ) ) {
 					$status_code = $response->get_error_code();
 					$res_message = $response->get_error_message();
 				} else {
 					$status_code = wp_remote_retrieve_response_code( $response );
 					$res_message = wp_remote_retrieve_response_message( $response );
+					$res_body    = wp_remote_retrieve_body( $response );
 				}
 				$parsed_response = array(
-					'status_code' => $status_code,
-					'response'    => $res_message,
+					'status_code'    => $status_code,
+					'response'       => $res_message,
+					// Re-connecting a portal that was already set up with this
+					// integration means these groups already exist on HubSpot --
+					// that's a normal outcome, not a failure, so callers can rely
+					// on this instead of only recognising a 409 status code.
+					'already_exists' => $this->hubwoo_is_already_exists_error( $status_code, $res_body ),
 				);
 				$this->create_log( $message, $url, $parsed_response, 'groups' );
 				return $parsed_response;
 			}
 		}
+	}
+
+	/**
+	 * Whether a HubSpot API error response represents "this already exists"
+	 * (e.g. a group/property with the same internal name is already present
+	 * on the connected portal) rather than a genuine failure. Re-connecting
+	 * an already set-up portal hits this constantly and should proceed
+	 * smoothly instead of getting stuck.
+	 *
+	 * @since 1.6.8
+	 * @param int    $status_code HTTP status code returned by HubSpot.
+	 * @param string $res_body    Raw response body.
+	 * @return bool
+	 */
+	private function hubwoo_is_already_exists_error( $status_code, $res_body ) {
+
+		if ( 409 == $status_code ) {
+			return true;
+		}
+
+		if ( empty( $res_body ) ) {
+			return false;
+		}
+
+		$decoded = json_decode( $res_body, true );
+
+		if ( empty( $decoded ) ) {
+			return false;
+		}
+
+		$category = isset( $decoded['category'] ) ? strtoupper( $decoded['category'] ) : '';
+		$message  = isset( $decoded['message'] ) ? strtoupper( $decoded['message'] ) : '';
+
+		return ( false !== strpos( $category, 'ALREADY_EXISTS' ) ) || ( false !== strpos( $message, 'ALREADY EXISTS' ) );
 	}
 
 	/**
@@ -673,11 +753,11 @@ class HubWooConnectionMananager {
 			);
 
 			if ( 202 == $status_code ) {
-				update_option( 'hubwoo_last_sync_date', time() );
+				update_option( 'hubwoo_last_sync_date', time(), false );
 				if ( ! empty( $args ) && get_option( 'hubwoo_background_process_running', false ) ) {
 					$hsocssynced  = get_option( 'hubwoo_ocs_contacts_synced', 0 );
 					$hsocssynced += count( $args['ids'] );
-					update_option( 'hubwoo_ocs_contacts_synced', $hsocssynced );
+					update_option( 'hubwoo_ocs_contacts_synced', $hsocssynced, false );
 				}
 				if ( isset( $args['ids'] ) && isset( $args['type'] ) ) {
 					Hubwoo::hubwoo_marked_sync( $args['ids'], $args['type'] );
@@ -705,7 +785,7 @@ class HubWooConnectionMananager {
 							} else {
 								$query = new WC_Order_Query(array(
 									'posts_per_page'      => -1,
-									'post_status'         => array_keys( wc_get_order_statuses() ),
+									'post_status'         => array_keys( Hubwoo::hubwoo_get_valid_order_statuses() ),
 									'order'               => 'desc',
 									'post_parent'         => 0,
 									'customer'			  => $single_email,
@@ -725,12 +805,12 @@ class HubWooConnectionMananager {
 					}
 				}
 
-				update_option( 'hubwoo_newsletter_property_update', '' );
-				update_option( 'hubwoo_abandoned_property_update', '' );
+				update_option( 'hubwoo_newsletter_property_update', '', false );
+				update_option( 'hubwoo_abandoned_property_update', '', false );
 			}
 
 			if ( ! empty( $savedinvalidemails ) ) {
-				update_option( 'hubwoo_pro_invalid_emails', $savedinvalidemails );
+				update_option( 'hubwoo_pro_invalid_emails', $savedinvalidemails, false );
 			}
 			$this->create_log( $message, $url, $parsed_response, 'contacts' );
 			return $parsed_response;
@@ -1099,10 +1179,21 @@ class HubWooConnectionMananager {
 			if ( $api_body ) {
 				$api_body = json_decode( $api_body, true );
 			}
-			update_option( 'hubwoo_access_workflow', 'yes' );
+			update_option( 'hubwoo_access_workflow', 'yes', false );
 		} else {
 			$workflows = array();
-			update_option( 'hubwoo_access_workflow', 'no' );
+			// Only a 403 (HubSpot's "insufficient scope / plan doesn't
+			// include Workflows" response) is real evidence the account
+			// lacks automation access. Any other failure -- a transient
+			// network error, a 5xx, a 401 while the token happens to be
+			// mid-refresh, a 429 rate limit -- is not, and must not flip
+			// this flag: hubwoo-automation.php's "Upgrade your plan"
+			// popup reads it directly, so doing so shows that popup over
+			// an unrelated, temporary API hiccup instead of a real
+			// plan/scope restriction.
+			if ( 403 == $status_code ) {
+				update_option( 'hubwoo_access_workflow', 'no', false );
+			}
 		}
 
 		if ( ! empty( $response->workflows ) ) {
@@ -1160,10 +1251,14 @@ class HubWooConnectionMananager {
 			if ( $api_body ) {
 				$api_body = json_decode( $api_body, true );
 			}
-			update_option( 'hubwoo_access_workflow', 'yes' );
+			update_option( 'hubwoo_access_workflow', 'yes', false );
 		} else {
 			$workflows = array();
-			update_option( 'hubwoo_access_workflow', 'no' );
+			// See the matching comment in get_workflows() -- only a 403
+			// is real evidence of no automation access.
+			if ( 403 == $status_code ) {
+				update_option( 'hubwoo_access_workflow', 'no', false );
+			}
 		}
 
 		if ( ! empty( $response->workflows ) ) {
@@ -1178,6 +1273,55 @@ class HubWooConnectionMananager {
 		}
 
 		return $workflows;
+	}
+
+	/**
+	 * Create a v4 "flow" on HubSpot -- the automation/v4/flows endpoint,
+	 * distinct from create_workflow()/get_workflows() above (the older
+	 * automation/v3/workflows endpoint, contact-object only). A flow is
+	 * what's required for a PLATFORM_FLOW-type workflow whose enrollment
+	 * trigger is a non-contact CRM object (deals, or HubSpot's native
+	 * Subscriptions object), which v3 workflows cannot target at all.
+	 * Kept as its own method rather than folded into create_workflow()
+	 * since the two endpoints have unrelated payload shapes and this one
+	 * is still a HubSpot public-beta API as of this writing.
+	 *
+	 * @since 1.10.0
+	 * @param array $flow_details formatted array with flow details (name, type, enrollmentCriteria, actions, etc).
+	 * @return array $parsed_response formatted array with status/response.
+	 */
+	public function create_platform_flow( $flow_details ) {
+
+		if ( is_array( $flow_details ) && isset( $flow_details['name'] ) ) {
+
+			$url          = '/automation/v4/flows';
+			$headers      = $this->get_token_headers();
+			$res_body     = '';
+			$flow_details = wp_json_encode( $flow_details );
+			$response     = wp_remote_post(
+				$this->base_url . $url,
+				array(
+					'body'    => $flow_details,
+					'headers' => $headers,
+				)
+			);
+			$message      = __( 'Creating Platform Flow', 'makewebbetter-hubspot-for-woocommerce' );
+			if ( is_wp_error( $response ) ) {
+				$status_code = $response->get_error_code();
+				$res_message = $response->get_error_message();
+			} else {
+				$status_code = wp_remote_retrieve_response_code( $response );
+				$res_message = wp_remote_retrieve_response_message( $response );
+				$res_body    = wp_remote_retrieve_body( $response );
+			}
+			$parsed_response = array(
+				'status_code' => $status_code,
+				'response'    => $res_message,
+				'body'        => $res_body,
+			);
+			$this->create_log( $message, $url, $parsed_response, 'workflows' );
+			return $parsed_response;
+		}
 	}
 
 	/**
@@ -1213,19 +1357,14 @@ class HubWooConnectionMananager {
 
 			if ( 400 == $response['status_code'] || 401 == $response['status_code'] ) {
 
-				update_option( 'hubwoo_pro_alert_param_set', true );
 				$error_apis = get_option( 'hubwoo-error-api-calls', 0 );
 				$error_apis ++;
-				update_option( 'hubwoo-error-api-calls', $error_apis );
+				update_option( 'hubwoo-error-api-calls', $error_apis, false );
 			} elseif ( 200 == $response['status_code'] || 202 == $response['status_code'] || 201 == $response['status_code'] || 204 == $response['status_code'] ) {
 
 				$success_apis = get_option( 'hubwoo-success-api-calls', 0 );
 				$success_apis ++;
-				update_option( 'hubwoo-success-api-calls', $success_apis );
-				update_option( 'hubwoo_pro_alert_param_set', false );
-			} else {
-
-				update_option( 'hubwoo_pro_alert_param_set', false );
+				update_option( 'hubwoo-success-api-calls', $success_apis, false );
 			}
 
 			if ( 200 == $response['status_code'] ) {
@@ -1270,6 +1409,57 @@ class HubWooConnectionMananager {
 
 		$table    = $wpdb->prefix . 'hubwoo_log';
 		$response = $wpdb->insert( $table, $log_data ); //phpcs:ignore
+	}
+
+	/**
+	 * Fetches every property currently defined on a HubSpot object type,
+	 * correctly parsed -- unlike get_all_hubspot_properties() above, which has
+	 * a pre-existing response-parsing bug (it checks $response['status_code']
+	 * directly on the raw wp_remote_get() result, which never has that key,
+	 * so it always returns the raw, undecoded HTTP response and never the
+	 * actual property list). That method is left exactly as-is here rather
+	 * than fixed in place: hubspot-field-to-field-sync's own admin display
+	 * already reads its raw, buggy return shape directly (checking for a
+	 * 'body' key and decoding it itself), so "fixing" it in place would break
+	 * that existing, working caller. This is a new, separate method instead,
+	 * using the same wp_remote_retrieve_response_code()/wp_remote_retrieve_body()
+	 * parsing every other method in this file already uses correctly.
+	 *
+	 * @since 1.10.0
+	 * @param string $object_type HubSpot object type (e.g. 'deals', 'subscriptions', 'contacts').
+	 * @return array[] Decoded property objects (each cast to an array), or an empty array on failure.
+	 */
+	public function fetch_object_properties( $object_type ) {
+
+		$url      = '/crm/v3/properties/' . $object_type;
+		$headers  = $this->get_token_headers();
+		$response = wp_remote_get( $this->base_url . $url, array( 'headers' => $headers ) );
+
+		if ( is_wp_error( $response ) ) {
+			$status_code = $response->get_error_code();
+			$res_message = $response->get_error_message();
+		} else {
+			$status_code = wp_remote_retrieve_response_code( $response );
+			$res_message = wp_remote_retrieve_response_message( $response );
+		}
+
+		$parsed_response = array(
+			'status_code' => $status_code,
+			'response'    => $res_message,
+		);
+
+		/* translators: %s is the object type */
+		$message = sprintf( esc_html__( 'Fetching all %s Properties', 'makewebbetter-hubspot-for-woocommerce' ), $object_type );
+		$this->create_log( $message, $url, $parsed_response, 'properties' );
+
+		if ( 200 !== (int) $status_code ) {
+			return array();
+		}
+
+		$body   = json_decode( wp_remote_retrieve_body( $response ), true );
+		$result = ( is_array( $body ) && isset( $body['results'] ) ) ? (array) $body['results'] : array();
+
+		return $result;
 	}
 
 	/**
@@ -1641,6 +1831,59 @@ class HubWooConnectionMananager {
 			
 			/* translators: %s is the object type */
 			$message = esc_html__( 'Creating bulk %s data', 'makewebbetter-hubspot-for-woocommerce' );
+			$message = sprintf( $message, $object_type );
+
+			if ( is_wp_error( $response ) ) {
+				$status_code = $response->get_error_code();
+				$res_message = $response->get_error_message();
+			} else {
+				$status_code = wp_remote_retrieve_response_code( $response );
+				$res_message = wp_remote_retrieve_response_message( $response );
+				$res_body    = wp_remote_retrieve_body( $response );
+			}
+
+			$parsed_response = array(
+				'status_code' => $status_code,
+				'response'    => $res_message,
+				'body'        => $res_body,
+			);
+
+			$this->create_log( $message, $url, $parsed_response, $object_type );
+			return $parsed_response;
+		}
+	}
+
+	/**
+	 * Create or update a batch of object records by a unique property value
+	 * (idProperty on each input), instead of by internal object ID -- lets a
+	 * caller create-or-update up to a batch's worth of records in one call
+	 * without a separate search/exists check first.
+	 *
+	 * @since 1.6.9
+	 * @param array $object_type HubSpot Object type.
+	 * @param array $upsert_data array with an 'inputs' key; each input needs
+	 *                           'id' (the unique value), 'idProperty' (which
+	 *                           property that value belongs to), and 'properties'.
+	 * @return array $parsed_response formatted array with status/response.
+	 */
+	public function create_batch_upsert_object_record( $object_type, $upsert_data ) {
+		if ( is_array( $upsert_data ) ) {
+
+			$url      = '/crm/v3/objects/' . $object_type . '/batch/upsert';
+			$headers  = $this->get_token_headers();
+			$res_body = '';
+
+			$upsert_data = wp_json_encode( $upsert_data );
+			$response = wp_remote_post(
+				$this->base_url . $url,
+				array(
+					'body'    => $upsert_data,
+					'headers' => $headers,
+				)
+			);
+
+			/* translators: %s is the object type */
+			$message = esc_html__( 'Upserting bulk %s data', 'makewebbetter-hubspot-for-woocommerce' );
 			$message = sprintf( $message, $object_type );
 
 			if ( is_wp_error( $response ) ) {

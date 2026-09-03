@@ -15,10 +15,14 @@ if (
 	wp_verify_nonce($_POST['hubwoo_nonce'], 'hubwoo_save_roles')
 ) {
 	$roles = isset($_POST['hubwoo-selected-user-roles']) ? array_map('sanitize_text_field', $_POST['hubwoo-selected-user-roles']) : array();
-	update_option('hubwoo-selected-user-roles', $roles);
-	update_option('hubwoo_greeting_displayed_setup', 'yes');
-	Hubwoo_Admin::hubwoo_schedule_sync_listener();
+	update_option('hubwoo-selected-user-roles', $roles, false);
+	update_option('hubwoo_greeting_displayed_setup', 'yes', false);
+	// Historical contact sync no longer auto-starts the moment onboarding
+	// finishes -- it now only starts when the admin explicitly clicks
+	// "Schedule Sync" on the Contacts tab (admin/templates/hubwoo-sync-contacts.php),
+	// which calls this same Hubwoo_Admin::hubwoo_schedule_sync_listener().
 	wp_safe_redirect(admin_url('admin.php?page=hubwoo&hubwoo_tab=hubwoo-overview&hubwoo_key=user-roles'));
+	exit;
 }
 $total_registered_users          = Hubwoo_Admin::hubwoo_get_all_users_count();
 $sync_process['display_user_role'] = 'block';
@@ -38,7 +42,7 @@ if ('yes' == get_option('hubwoo_onboard_user', 'no')) {
 }
 
 if (empty(get_option('hubwoo_customers_role_settings', array()))) {
-	update_option('hubwoo_customers_role_settings', array_keys(Hubwoo_Admin::get_all_user_roles()));
+	update_option('hubwoo_customers_role_settings', array_keys(Hubwoo_Admin::get_all_user_roles()), false);
 }
 
 $onboarding_data = Hubwoo::hubwoo_onboarding_questionaire();
@@ -54,7 +58,7 @@ $onboarding_data = Hubwoo::hubwoo_onboarding_questionaire();
 		</div>
 		<?php
 		if (empty(get_option('hubwoo-selected-user-roles', ''))) {
-			update_option('hubwoo-selected-user-roles', array_keys(Hubwoo_Admin::get_all_user_roles()));
+			update_option('hubwoo-selected-user-roles', array_keys(Hubwoo_Admin::get_all_user_roles()), false);
 		}
 		?>
 		<div class="mwb-heb-wlcm__content">

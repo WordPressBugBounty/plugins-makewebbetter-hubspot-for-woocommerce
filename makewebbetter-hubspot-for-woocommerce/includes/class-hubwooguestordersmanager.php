@@ -40,21 +40,6 @@ class HubwooGuestOrdersManager {
 	}
 
 	/**
-	 * Get customer shopping cart details from order meta.
-	 *
-	 * @return string    order meta detail.
-	 * @param int    $order_id id of the order.
-	 * @param string $property_name name of the property.
-	 * @since 1.0.0
-	 */
-	public static function get_order_meta( $order_id, $property_name ) {
-		//hpos changes
-		$order = wc_get_order( $order_id );
-
-		return Hubwoo::hubwoo_hpos_get_meta_data($order, $property_name, true);
-	}
-
-	/**
 	 * Guest customer details.
 	 *
 	 * @param int    $order_id id of the order.
@@ -67,6 +52,10 @@ class HubwooGuestOrdersManager {
 		$guest_user_properties = array();
 
 		$order = wc_get_order($order_id);
+
+		if (! $order) {
+			return $guest_user_properties;
+		}
 
 		$billing_country  = $order->get_billing_country();
 		$billing_state    = $order->get_billing_state();
@@ -153,50 +142,13 @@ class HubwooGuestOrdersManager {
 		$last_order_for_html            = 0;
 		$last_order_id                  = 0;
 
-		$order_statuses = get_option( 'hubwoo-selected-order-status', array() );
-
-		if ( empty( $order_statuses ) ) {
-
-			$order_statuses = array_keys( wc_get_order_statuses() );
-		}
-
-		//hpos changes
-		if( Hubwoo::hubwoo_check_hpos_active() ) {
-			$query = new WC_Order_Query(array(
-				'posts_per_page'      => -1,
-				'post_status'         => $order_statuses,
-				'orderby'             => 'date',
-				'order'               => 'desc',
-				'return'              => 'ids',
-				'no_found_rows'       => true,
-				'ignore_sticky_posts' => true,
-				'customer'			  => $email,
-			));
-
-			$customer_orders = $query->get_orders();
-
-		} else {
-			$query = new WP_Query();
-
-			$customer_orders = $query->query(
-				array(
-					'post_type'           => 'shop_order',
-					'posts_per_page'      => -1,
-					'post_status'         => $order_statuses,
-					'orderby'             => 'date',
-					'order'               => 'desc',
-					'fields'              => 'ids',
-					'no_found_rows'       => true,
-					'ignore_sticky_posts' => true,
-					'meta_query'          => array(
-						array(
-							'key'   => '_billing_email',
-							'value' => $email,
-						),
-					),
-				)
-			);
-		}
+		// This function is only ever reached for an email confirmed to have
+		// no WP account (callers redirect to the registered-contact sync
+		// otherwise -- see Hubwoo::hubwoo_resolve_contact_orders()), so
+		// user_id is deliberately 0 here: only genuinely customer-less
+		// orders billed to this email count, never one placed by someone
+		// else's account that merely happens to be billed here.
+		$customer_orders = Hubwoo::hubwoo_resolve_contact_orders( 0, $email );
 
 		$guest_user_properties[] = array(
 			'property' => 'customer_group',
@@ -282,8 +234,17 @@ class HubwooGuestOrdersManager {
 					continue;
 				}
 
-				// order date.
-				$order_date = get_post_time( 'U', false, $order_id );
+				// get order — HPOS-safe.
+				$order = wc_get_order( $order_id );
+
+				// check for WP_Error object or deleted order.
+				if ( ! $order || is_wp_error( $order ) ) {
+					continue;
+				}
+
+				// order date — use WC_Order API instead of get_post_time() which fails under HPOS.
+				$date_created = $order->get_date_created();
+				$order_date   = $date_created ? $date_created->getTimestamp() : 0;
 
 				$last_date = $order_date;
 
@@ -294,14 +255,6 @@ class HubwooGuestOrdersManager {
 				$average_days[] = self::hubwoo_get_average_days( $first_date, $last_date );
 
 				$first_date = $last_date;
-
-				// get order.
-				$order = new WC_Order( $order_id );
-
-				// check for WP_Error object.
-				if ( empty( $order ) || is_wp_error( $order ) ) {
-					continue;
-				}
 
 				$order_status = $order->get_status();
 
@@ -334,8 +287,10 @@ class HubwooGuestOrdersManager {
 
 									foreach ( $product_cats_ids as $cat_id ) {
 
-										$term                = get_term_by( 'id', $cat_id, 'product_cat' );
-										$categories_bought[] = $term->slug;
+										$term = get_term_by( 'id', $cat_id, 'product_cat' );
+										if ( $term ) {
+											$categories_bought[] = $term->slug;
+										}
 									}
 								}
 
@@ -420,13 +375,13 @@ class HubwooGuestOrdersManager {
 				// check for last order and finish all last order calculations.
 				if ( ! $counter ) {
 
-					// last order date.
+					// last order date — use WC_Order API (get_post_time() fails under HPOS).
 					$guest_user_properties[] = array(
 						'property' => 'last_order_date',
-						'value'    => self::hubwoo_set_utc_midnight( get_post_time( 'U', false, $order_id ) ),
+						'value'    => self::hubwoo_set_utc_midnight( $order_date ),
 					);
 
-					$last_order_date = get_post_time( 'U', false, $order_id );
+					$last_order_date = $order_date;
 
 					$guest_user_properties[] = array(
 						'property' => 'last_order_value',
@@ -496,7 +451,7 @@ class HubwooGuestOrdersManager {
 					// first order based calculation here..
 					$guest_user_properties[] = array(
 						'property' => 'first_order_date',
-						'value'    => self::hubwoo_set_utc_midnight( get_post_time( 'U', false, $order_id ) ),
+						'value'    => self::hubwoo_set_utc_midnight( $order_date ),
 					);
 					$guest_user_properties[] = array(
 						'property' => 'first_order_value',
@@ -676,11 +631,15 @@ class HubwooGuestOrdersManager {
 
 			$order_monetary = $total_value_of_orders;
 
-			$current_date    = gmdate( 'Y-m-d H:i:s', time() );
-			$current_date    = new DateTime( $current_date );
-			$last_order_date = gmdate( 'Y-m-d H:i:s', $last_order_date );
-			$last_order_date = new DateTime( $last_order_date );
-			$order_recency   = date_diff( $current_date, $last_order_date, true );
+			try {
+				$current_date    = gmdate( 'Y-m-d H:i:s', time() );
+				$current_date    = new DateTime( $current_date );
+				$last_order_date = gmdate( 'Y-m-d H:i:s', $last_order_date );
+				$last_order_date = new DateTime( $last_order_date );
+				$order_recency   = date_diff( $current_date, $last_order_date, true );
+			} catch ( Exception $e ) {
+				$order_recency = (object) array( 'days' => 0 );
+			}
 
 			$order_recency          = $order_recency->days;
 			$monetary_rating        = 1;
@@ -805,8 +764,15 @@ class HubwooGuestOrdersManager {
 	 * @since  1.0.0
 	 */
 	public static function hubwoo_set_utc_midnight( $unix_timestamp, $for_deals = false ) {
-		$string = gmdate( 'Y-m-d H:i:s', $unix_timestamp );
-		$date   = new DateTime( $string );
+		if ( empty( $unix_timestamp ) ) {
+			return 0;
+		}
+		try {
+			$string = gmdate( 'Y-m-d H:i:s', $unix_timestamp );
+			$date   = new DateTime( $string );
+		} catch ( Exception $e ) {
+			return 0;
+		}
 
 		if ( $for_deals ) {
 

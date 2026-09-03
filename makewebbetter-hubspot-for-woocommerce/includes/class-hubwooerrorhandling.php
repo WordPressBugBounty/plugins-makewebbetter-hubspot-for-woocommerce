@@ -81,8 +81,8 @@ class HubwooErrorHandling {
 					if ( ! empty( $res ) ) {
 						foreach ( $res as $form_value ) {
 							if ( HubwooConst::CHECKOUTFORMNAME == $form_value['name'] ) {
-								update_option( 'hubwoo_checkout_form_created', 'yes' );
-								update_option( 'hubwoo_checkout_form_id', $form_value['guid'] );
+								update_option( 'hubwoo_checkout_form_created', 'yes', true );
+								update_option( 'hubwoo_checkout_form_id', $form_value['guid'], false );
 								break;
 							}
 						}

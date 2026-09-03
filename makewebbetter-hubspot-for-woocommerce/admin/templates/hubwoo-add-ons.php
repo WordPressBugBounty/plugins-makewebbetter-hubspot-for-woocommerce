@@ -47,7 +47,7 @@ global $hubwoo;
 			</div>
 			<div class="hubwoo-box-n-card__btn">
 				<div>
-					<a href="https://makewebbetter.com/product/hubspot-field-to-field-sync/?utm_source=MWB-HubspotFree-backend&utm_medium=MWB-backend&utm_campaign=backend" target="_blank" class="hubwoo__btn "><?php esc_html_e('$79 Buy Now', 'makewebbetter-hubspot-for-woocommerce'); ?></a>
+					<a href="https://makewebbetter.com/product/hubspot-field-to-field-sync/?utm_source=MWB-HubspotFree-backend&utm_medium=MWB-backend&utm_campaign=backend" target="_blank" class="hubwoo__btn "><?php esc_html_e('$119 Buy Now', 'makewebbetter-hubspot-for-woocommerce'); ?></a>
 				</div>
 			</div>
 		</div>
@@ -66,7 +66,7 @@ global $hubwoo;
 			</div>
 			<div class="hubwoo-box-n-card__btn">
 				<div>
-					<a href="https://makewebbetter.com/product/hubspot-deals-for-woocommerce-memberships/?utm_source=MWB-HubspotFree-backend&utm_medium=MWB-backend&utm_campaign=backend" target="_blank" class="hubwoo__btn "><?php esc_html_e('$59 Buy Now', 'makewebbetter-hubspot-for-woocommerce'); ?></a>
+					<a href="https://makewebbetter.com/product/hubspot-deals-for-woocommerce-memberships/?utm_source=MWB-HubspotFree-backend&utm_medium=MWB-backend&utm_campaign=backend" target="_blank" class="hubwoo__btn "><?php esc_html_e('$79 Buy Now', 'makewebbetter-hubspot-for-woocommerce'); ?></a>
 				</div>
 			</div>
 		</div>

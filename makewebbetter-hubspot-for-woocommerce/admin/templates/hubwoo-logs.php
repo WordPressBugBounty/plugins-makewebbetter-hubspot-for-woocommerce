@@ -14,40 +14,45 @@ $log_enable = Hubwoo::is_log_enable();
 ?>
 <div id="hubwoo-logs" class="hubwoo-content-wrap hubwoo-tabcontent">
 	<div class="hubwoo-logs__header">
-		<div class="hubwoo-logs__heading-wrap">
-			<h2 class="hubwoo-section__heading">
-				<?php esc_html_e('Sync Log', 'makewebbetter-hubspot-for-woocommerce'); ?>
-			</h2>
-		</div>
 		<?php if ($log_enable) : ?>
-			<ul class="hubwoo-logs__settings-list">
-				<li class="hubwoo-logs__settings-list-item">
-					<a id="hubwoo-clear-log" href="#" class="hubwoo-logs__setting-link">
-						<?php esc_html_e('Clear Log', 'makewebbetter-hubspot-for-woocommerce'); ?>
-					</a>
-				</li>
-				<li class="hubwoo-logs__settings-list-item">
-					<a id="hubwoo-download-log" class="hubwoo-logs__setting-link">
-						<?php esc_html_e('Download', 'makewebbetter-hubspot-for-woocommerce'); ?>
-					</a>
-				</li>
-			</ul>
-			<div class="hubwoo-logs__logs-control-section">
-				<form action="" method="post" class="hubwoo-logs-control-form">
-					<?php
-					woocommerce_admin_fields(array(
-						array(
-							'title'             => esc_html__('Log Retention Period (Days)', 'makewebbetter-hubspot-for-woocommerce'),
-							'id'                => 'hubwoo_logs_delete_after',
-							'type'              => 'number',
-							'desc'              => esc_html__('Logs older than the specified number of days will be automatically deleted (min. 10 days).', 'makewebbetter-hubspot-for-woocommerce'),
-							'desc_tip'          => true,
-							'custom_attributes' => array('min' => '10'),
-							'default'           => '30',
-						)
-					));
-					?>
-				</form>
+			<div class="hubwoo-logs__header-left">
+				<div class="hubwoo-logs__heading-wrap">
+					<h2 class="hubwoo-section__heading">
+						<?php esc_html_e('Sync Log', 'makewebbetter-hubspot-for-woocommerce'); ?>
+					</h2>
+				</div>
+				<div class="hubwoo-logs__logs-control-section">
+					<form action="" method="post" class="hubwoo-logs-control-form">
+						<?php
+						woocommerce_admin_fields(array(
+							array(
+								'title'             => esc_html__('Log Retention Period (Days)', 'makewebbetter-hubspot-for-woocommerce'),
+								'id'                => 'hubwoo_logs_delete_after',
+								'type'              => 'number',
+								'desc'              => '',
+								'desc_tip'          => true,
+								'custom_attributes' => array('min' => '10'),
+								'default'           => '30',
+							)
+						));
+						?>
+					</form>
+				</div>
+			</div>
+			
+			<div class="hubwoo-logs__header-right">
+				<ul class="hubwoo-logs__settings-list">
+					<li class="hubwoo-logs__settings-list-item">
+						<a id="hubwoo-clear-log" href="#" class="hubwoo-logs__setting-link">
+							<?php esc_html_e('Clear Log', 'makewebbetter-hubspot-for-woocommerce'); ?>
+						</a>
+					</li>
+					<li class="hubwoo-logs__settings-list-item">
+						<a id="hubwoo-download-log" class="hubwoo-logs__setting-link">
+							<?php esc_html_e('Download Logs', 'makewebbetter-hubspot-for-woocommerce'); ?>
+						</a>
+					</li>
+				</ul>
 			</div>
 		<?php endif; ?>
 	</div>

@@ -91,8 +91,46 @@ class HubwooObjectProperties
 		global $hubwoo;
 
 		$order = wc_get_order($order_id);
-		$guest_email = $order->get_billing_email();
+		if (! $order) {
+			return;
+		}
+		// HubSpot stores/matches contact emails lowercased -- normalize here so
+		// the real-time guest contact upsert below doesn't create a mixed-case
+		// duplicate of (or miss) an existing lowercase contact.
+		$guest_email = strtolower($order->get_billing_email());
 		if (! empty($guest_email)) {
+
+			// If this "guest" email actually belongs to a real WP account,
+			// this isn't a guest contact at all -- sync them as a registered
+			// contact instead, through the same complete path any other
+			// registered customer goes through (their order-derived
+			// properties correctly include this order via
+			// Hubwoo::hubwoo_resolve_contact_orders(), and their
+			// address/customer_group/language/etc. come from their own
+			// account data), rather than pushing a separate guest-flavored
+			// property set that would just get overwritten by (or itself
+			// overwrite) that registered sync.
+			$existing_wp_user = get_user_by('email', $guest_email);
+			if ($existing_wp_user instanceof WP_User) {
+				self::hubwoo_ecomm_contacts_with_id($existing_wp_user->ID);
+				// hubwoo_ecomm_sync_deal()'s guest branch (still 'guest' here --
+				// $source was decided purely from get_customer_id() being empty,
+				// before this email match was known) reads the contact vid back
+				// off the ORDER's own meta, not the user's, to decide whether to
+				// associate the deal to a contact. Mirror it onto the order here,
+				// otherwise that association is silently skipped for every such
+				// order even though the contact synced successfully.
+				$existing_contact_vid = get_user_meta($existing_wp_user->ID, 'hubwoo_user_vid', true);
+				$existing_invalid_contact = get_user_meta($existing_wp_user->ID, 'hubwoo_invalid_contact', true);
+				if (!empty($existing_contact_vid)) {
+					Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_user_vid', $existing_contact_vid);
+				}
+				if (!empty($existing_invalid_contact)) {
+					Hubwoo::hubwoo_hpos_update_meta_data($order, 'hubwoo_invalid_contact', $existing_invalid_contact);
+				}
+				return;
+			}
+
 			$contact                                    = array();
 
 			$object_type                                = 'CONTACT';
@@ -168,7 +206,10 @@ class HubwooObjectProperties
 			$invalid_contact = get_user_meta($customer_id, 'hubwoo_invalid_contact', true);
 		} else {
 			$contact_vid = Hubwoo::hubwoo_hpos_get_meta_data($order, 'hubwoo_user_vid', true);
-			$contact = $order->get_billing_email();
+			// HubSpot stores/matches contact emails lowercased -- normalize
+			// here too, so the deal-to-contact association below matches an
+			// existing lowercase contact instead of missing it.
+			$contact = strtolower($order->get_billing_email());
 			$invalid_contact = Hubwoo::hubwoo_hpos_get_meta_data($order, 'hubwoo_invalid_contact', true);
 		}
 
@@ -326,8 +367,19 @@ class HubwooObjectProperties
 						$product         = $single_item->get_product();
 						$name            = self::hubwoo_ecomm_product_name($product);
 						$discount_amount = abs($item_total - $item_sub_total);
-						$discount_amount = $discount_amount / $quantity;
-						$item_sub_total  = $item_sub_total / $quantity;
+						// $quantity can legitimately be 0 (see the fallback above) --
+						// dividing by it here throws an uncaught DivisionByZeroError on
+						// PHP 8+ (fatal, no try/catch anywhere in this call chain) and
+						// produces INF/NAN on PHP 7, sent straight to HubSpot as the
+						// line item's price/discount. A per-unit value isn't meaningful
+						// for a zero-quantity line anyway, so treat it as 0 instead.
+						if ($quantity > 0) {
+							$discount_amount = $discount_amount / $quantity;
+							$item_sub_total  = $item_sub_total / $quantity;
+						} else {
+							$discount_amount = 0;
+							$item_sub_total  = 0;
+						}
 						$object_ids[]    = $item_key;
 
 						$properties = array(
@@ -336,13 +388,30 @@ class HubwooObjectProperties
 							'total_cost'      => $item_total,
 							'name'            => $name,
 							'discount'        => $discount_amount,
-							'sku'             => $item_sku,
+							'hs_sku'          => $item_sku,
 							'tax_amount'      => $total_tax,
 						);
 
 						if ('yes' != get_option('hubwoo_product_scope_needed', 'no')) {
-							$hs_product_id   = get_post_meta($product_id, 'hubwoo_ecomm_pro_id', true);
-							if(!empty($hs_product_id)){
+							$hs_product_id = get_post_meta($product_id, 'hubwoo_ecomm_pro_id', true);
+
+							if (empty($hs_product_id)) {
+								// This product hasn't been synced to HubSpot yet (e.g. it was
+								// created/duplicated after onboarding, or its earlier sync
+								// attempt failed). Sync it now so the deal's line item can
+								// still carry hs_product_id instead of silently omitting it.
+								$line_item_product = wc_get_product($product_id);
+								if (! empty($line_item_product)) {
+									$product_post_id = $line_item_product->is_type('variation') ? $line_item_product->get_parent_id() : $product_id;
+									$product_post    = get_post($product_post_id);
+									if (! empty($product_post) && 'product' === $product_post->post_type) {
+										Hubwoo_Admin::hubwoo_ecomm_update_product($product_post_id, $product_post);
+										$hs_product_id = get_post_meta($product_id, 'hubwoo_ecomm_pro_id', true);
+									}
+								}
+							}
+
+							if (!empty($hs_product_id)) {
 								$hs_product_ids[] = array('id' => $hs_product_id);
 								$properties['hs_product_id'] = $hs_product_id;
 							}
@@ -411,7 +480,7 @@ class HubwooObjectProperties
 			if (201 == $response['status_code'] || 206 == $response['status_code'] || empty($object_ids)) {
 				if (1 == get_option('hubwoo_deals_sync_running', 0)) {
 					$current_count = get_option('hubwoo_deals_current_sync_count', 0);
-					update_option('hubwoo_deals_current_sync_count', ++$current_count);
+					update_option('hubwoo_deals_current_sync_count', ++$current_count, false);
 				}
 			}
 			if (201 == $response['status_code']) {
@@ -435,18 +504,27 @@ class HubwooObjectProperties
 
 		if (! empty($order_id)) {
 			$hubwoo_ecomm_order = wc_get_order($order_id);
+
+			$order_status  = $hubwoo_ecomm_order->get_status();
+			$created_via   = $hubwoo_ecomm_order->get_created_via();
+
+			if ($order_status === 'checkout-draft' && $created_via === 'store-api') {
+				Hubwoo::hubwoo_hpos_update_meta_data( $hubwoo_ecomm_order, 'hubwoo_ecomm_deal_upsert', 'no' );
+				Hubwoo::hubwoo_hpos_delete_meta_data( $hubwoo_ecomm_order, 'hubwoo_ecomm_deal_upsert' );
+				return;
+			}
 			if ($hubwoo_ecomm_order instanceof WC_Order) {
 
 				// Get selected user roles for syncing
 				$real_user_roles = get_option('hubwoo-selected-user-roles', array());
 				if (empty($real_user_roles)) {
 					$real_user_roles = array_keys(Hubwoo_Admin::get_all_user_roles());
-					update_option('hubwoo-selected-user-roles', $real_user_roles);
+					update_option('hubwoo-selected-user-roles', $real_user_roles, false);
 				}
 				$historical_user_roles = get_option('hubwoo_customers_role_settings', array());
 				if (empty($historical_user_roles)) {
 					$historical_user_roles = array_keys(Hubwoo_Admin::get_all_user_roles());
-					update_option('hubwoo_customers_role_settings', $historical_user_roles);
+					update_option('hubwoo_customers_role_settings', $historical_user_roles, false);
 				}
 
 				$customer_id = $hubwoo_ecomm_order->get_customer_id();
@@ -477,7 +555,7 @@ class HubwooObjectProperties
 				}
 				Hubwoo::hubwoo_hpos_delete_meta_data($hubwoo_ecomm_order, 'hubwoo_invalid_deal');
 				$response = self::hubwoo_ecomm_sync_deal($order_id, $source, $customer_id);
-				update_option('hubwoo_last_sync_date', time());
+				update_option('hubwoo_last_sync_date', time(), false);
 				return $response;
 			}
 		}

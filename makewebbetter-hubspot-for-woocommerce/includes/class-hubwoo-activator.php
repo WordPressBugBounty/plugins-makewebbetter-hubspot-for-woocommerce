@@ -32,7 +32,7 @@ if ( ! class_exists( 'Hubwoo_Activator' ) ) {
 		 */
 		public static function activate() {
 
-			update_option( 'hubwoo_plugin_activated_time', time() );
+			update_option( 'hubwoo_plugin_activated_time', time(), false );
 
 			if ( ! function_exists( 'WP_Filesystem' ) ) {
 				require_once ABSPATH . 'wp-admin/includes/file.php';

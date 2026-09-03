@@ -94,7 +94,11 @@ if ( 1 == get_option( 'hubwoo_connection_setup_established', 0 ) ) {
 						<?php
 							$current_user_sync = get_option( 'hubwoo_ocs_contacts_synced', 0 );
 							esc_html_e( 'Your contacts are syncing in the background so you can safely leave this page.', 'makewebbetter-hubspot-for-woocommerce' );
-							$perc         = round( $current_user_sync * 100 / $users_to_sync );
+							// hubwoo_total_ocs_contact_need_sync is stored as 0 whenever there's
+							// nothing left to sync (see hubwoo_sync_status_tracker()) -- the
+							// get_option() default above only applies when the option is missing
+							// entirely, not when it's genuinely 0, so guard the division here too.
+							$perc         = $users_to_sync > 0 ? round( $current_user_sync * 100 / $users_to_sync ) : 0;
 							$total_synced = $perc > 100 ? 100 : $perc;
 
 						?>
@@ -108,8 +112,43 @@ if ( 1 == get_option( 'hubwoo_connection_setup_established', 0 ) ) {
 							</div> 
 						</div>						
 						<a href="javascript:;" data-action="stop-contact" class="manage_contact_sync hubwoo__btn"><?php esc_html_e( 'Stop Sync', 'makewebbetter-hubspot-for-woocommerce' ); ?></a>
-					</div>					
-				</div>	
+					</div>
+				</div>
+				<?php
+			} elseif ( 'hubwoo-overview' === $active_tab ) {
+				// Historical contact sync no longer auto-starts after onboarding (see
+				// admin/templates/setup/hubwoo-user-roles.php's own comment on this) --
+				// this box is the replacement: an explicit invitation rather than a
+				// silent auto-start, shown in the same slot the sync-in-progress
+				// banner above occupies while a sync is actually running (the two
+				// are mutually exclusive by definition). Hidden once a sync is
+				// actually running or has completed at least once, since the
+				// invitation stops being relevant at that point -- the counters
+				// below already show ongoing progress. Dashboard-tab only --
+				// this template renders every tab, and the invitation isn't
+				// relevant on the others. Dismissible independently of the
+				// auto-hide conditions above -- once closed, this stays gone for
+				// good, even if a later sync run resets
+				// hubwoo_background_process_running/hubwoo_ocs_data_synced.
+				$hubwoo_show_contact_sync_prompt = ! get_option( 'hubwoo_background_process_running', false ) && ! get_option( 'hubwoo_ocs_data_synced', false ) && 'yes' !== get_option( 'hubwoo_sync_users_prompt_dismissed', 'no' );
+				?>
+				<?php if ( $hubwoo_show_contact_sync_prompt ) : ?>
+				<div class="hubwoo-db__row">
+					<div class="hubwoo-db__column">
+						<div class="hubwoo-db__box-full hubwoo-db__box-full--compact">
+							<a href="javascript:void(0)" class="hubwoo-dismiss-sync-users-prompt" title="<?php esc_attr_e( 'Dismiss', 'makewebbetter-hubspot-for-woocommerce' ); ?>"></a>
+							<div class="hubwoo-db__box-title">
+								<h4 class="hubwoo-db__box-title--emphasis"><?php esc_html_e( 'Are you interested in syncing all store users?', 'makewebbetter-hubspot-for-woocommerce' ); ?></h4>
+							</div>
+							<div class="hubwoo-db__box-full-content">
+								<a href="<?php echo esc_url( admin_url( 'admin.php?page=hubwoo&hubwoo_tab=hubwoo-sync-contacts' ) ); ?>" class="hubwoo-btn--dashboard hubwoo-btn--primary">
+									<?php esc_html_e( 'Initiate Sync', 'makewebbetter-hubspot-for-woocommerce' ); ?>
+								</a>
+							</div>
+						</div>
+					</div>
+				</div>
+				<?php endif; ?>
 				<?php
 			}
 

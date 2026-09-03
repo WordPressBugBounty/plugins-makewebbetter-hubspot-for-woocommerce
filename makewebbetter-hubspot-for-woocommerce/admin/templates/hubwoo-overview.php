@@ -15,6 +15,9 @@ $hubspot_url  = Hubwoo::hubwoo_get_auth_url();
 $display_data = Hubwoo::hubwoo_setup_overview();
 
 if ( isset( $_GET['task'] ) && 'install-plugin' == $_GET['task'] ) {
+	if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'hubwoo_install_plugin' ) ) {
+		wp_die();
+	}
 	Hubwoo::hubwoo_setup_overview( true );
 }
 $portal_id = get_option( 'hubwoo_pro_hubspot_id', '' );
@@ -62,6 +65,36 @@ $portal_id = get_option( 'hubwoo_pro_hubspot_id', '' );
 				</div>
 			</div>
 		</div>
+		<?php
+		// Same detection logic hubwoo_hpos_notice() (admin/class-hubwoo-admin.php)
+		// already uses for its own admin_notices banner -- reused here rather than
+		// redefined, so both surfaces agree on what counts as "handled": the
+		// dedicated HPOS compatibility add-on is active, or hubwoo_hpos_license_check
+		// is set. Unlike that dismissible banner, this box has no dismiss option --
+		// deals silently failing to sync isn't something that should be permanently
+		// hideable, since a merchant who dismisses it may never learn why their
+		// deals stopped appearing in HubSpot.
+		$hubwoo_active_plugins    = get_option( 'active_plugins', array() );
+		$hubwoo_hpos_addon_active = in_array( 'hubspot-woocommerce-hpos-compatibility/hubspot-woocommerce-hpos-compatibility.php', $hubwoo_active_plugins, true ) || true == get_option( 'hubwoo_hpos_license_check', 0 );
+		$hubwoo_show_hpos_prompt  = ( 'yes' === get_option( 'woocommerce_custom_orders_table_enabled', 'no' ) ) && ! $hubwoo_hpos_addon_active;
+		?>
+		<?php if ( $hubwoo_show_hpos_prompt ) : ?>
+		<div class="hubwoo-db__row">
+			<div class="hubwoo-db__column">
+				<div class="hubwoo-db__box-full">
+					<div class="hubwoo-db__box-title">
+						<h4><?php esc_html_e( 'HPOS Compatibility Add-on Required', 'makewebbetter-hubspot-for-woocommerce' ); ?></h4>
+						<p><?php esc_html_e( 'Your store is using WooCommerce HPOS, but the HPOS Compatibility add-on is not active. Until it is, orders will not sync to HubSpot as deals.', 'makewebbetter-hubspot-for-woocommerce' ); ?></p>
+					</div>
+					<div class="hubwoo-db__box-full-content">
+						<a target="_blank" href="https://makewebbetter.com/product/hubspot-woocommerce-hpos-compatibility/?utm_source=MWB-HubspotFree-backend&utm_medium=MWB-backend&utm_campaign=backend" class="hubwoo-btn--dashboard hubwoo-btn--primary">
+							<?php esc_html_e( 'Buy Now', 'makewebbetter-hubspot-for-woocommerce' ); ?>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<?php endif; ?>
 		<div class="hubwoo-db__counter">
 			<div class="hubwoo-db__row">
 				<div class="hubwoo-db__counter-column">

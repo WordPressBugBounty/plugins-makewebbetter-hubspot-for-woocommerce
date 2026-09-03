@@ -321,7 +321,7 @@ $final_properties = array_map(
 						<?php
 
 						if ( empty( get_option( 'hubwoo-selected-user-roles', '' ) ) ) {
-							update_option( 'hubwoo-selected-user-roles', array_keys( Hubwoo_Admin::get_all_user_roles() ) );
+							update_option( 'hubwoo-selected-user-roles', array_keys( Hubwoo_Admin::get_all_user_roles() ), false );
 						}
 
 						?>

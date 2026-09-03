@@ -111,7 +111,7 @@ global $hubwoo;
 				</div>
 			</div>
 			<div class="hubwoo-box-n-card__btn">
-				<a href="?hubwoo_download=1" class="hubwoo__btn"><?php esc_html_e( 'Download', 'makewebbetter-hubspot-for-woocommerce' ); ?></a>
+				<a href="<?php echo esc_url( wp_nonce_url( '?hubwoo_download=1', 'hubwoo_download_log' ) ); ?>" class="hubwoo__btn"><?php esc_html_e( 'Download', 'makewebbetter-hubspot-for-woocommerce' ); ?></a>
 			</div>
 		</div>
 	</div>

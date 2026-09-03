@@ -66,6 +66,33 @@ jQuery( document ).ready(function($){
 		}
 	);
 
+	jQuery(document).on(
+		'click',
+		'.hubwoo-dismiss-sync-users-prompt',
+		async function() {
+			// .hubwoo-db__row is reused by several other dashboard boxes --
+			// hide only the row this specific close icon belongs to, not
+			// every row on the page.
+			const $row = jQuery(this).closest('.hubwoo-db__row');
+
+			const response = await jQuery.ajax(
+				{
+					type : 'POST',
+					url  : ajaxUrl,
+					data : {
+						action : 'hubwoo_dismiss_sync_users_prompt',
+						hubwooSecurity,
+					},
+					dataType : 'json',
+				}
+			);
+
+			if( true == response.status ) {
+				$row.hide();
+			}
+		}
+	);
+
 	// jQuery(document).on(
 	// 	'click',
 	// 	'.hubwoo-hide-festive-notice',

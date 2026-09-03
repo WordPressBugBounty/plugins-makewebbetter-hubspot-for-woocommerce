@@ -62,57 +62,34 @@ class HubwooDataSync
 			$order_statuses = get_option('hubwoo-selected-order-status', array());
 
 			if (empty($order_statuses) || (! is_array($order_statuses) && count($order_statuses) < 1)) {
-				$order_statuses = array_keys(wc_get_order_statuses());
+				$order_statuses = array_keys(Hubwoo::hubwoo_get_valid_order_statuses());
 			}
 
 			if (false !== $key) {
 				unset($roles[$key]);
 			}
 
-			$is_hpos_enabled = Hubwoo::hubwoo_check_hpos_active();
-			//hpos changes
-			if ($is_hpos_enabled) {
-				// HPOS is enabled.
-				$args = array(
-					'limit'        => -1, // Query all orders
-					'post_status'  => $order_statuses,
-					'return'       => 'ids',
-					'post_parent'  => 0,
-					'customer_id'  => 0,
-					'meta_query'   => array(
-						'relation' => 'AND',
-						array(
-							'key'     => 'hubwoo_pro_guest_order',
-							'compare' => '==',
-							'value'   => 'yes',
-						),
-						array(
-							'key'     => 'hubwoo_invalid_contact',
-							'compare' => 'NOT EXISTS',
-						),
-					)
-				);
-			} else {
-				// CPT-based orders are in use.
-				$args = array(
-					'numberposts' => -1,
-					'post_type'   => 'shop_order',
-					'fields'      => 'ids',
-					'post_status' => $order_statuses,
-					'meta_query'  => array(
-						'relation' => 'AND',
-						array(
-							'key'     => 'hubwoo_pro_guest_order',
-							'compare' => '==',
-							'value'   => 'yes',
-						),
-						array(
-							'key'     => 'hubwoo_invalid_contact',
-							'compare' => 'NOT EXISTS',
-						),
+			// wc_get_orders() resolves HPOS vs legacy storage internally (see
+			// hubwoo_setup_overview()), so a single call covers both -- no more
+			// branching on which query function to call.
+			$args = array(
+				'limit'       => -1,
+				'post_status' => $order_statuses,
+				'return'      => 'ids',
+				'post_parent' => 0,
+				'customer_id' => 0,
+				'meta_query'  => array(
+					'relation' => 'AND',
+					array(
+						'key'     => 'hubwoo_pro_guest_order',
+						'compare' => 'NOT EXISTS',
 					),
-				);
-			}
+					array(
+						'key'     => 'hubwoo_invalid_contact',
+						'compare' => 'NOT EXISTS',
+					),
+				),
+			);
 
 			if ($date_range) {
 				$args['date_query'] = array(
@@ -124,12 +101,30 @@ class HubwooDataSync
 				);
 			}
 
-			//hpos changes
-			if ($is_hpos_enabled) {
-				$guest_orders = wc_get_orders($args);
-			} else {
-				$guest_orders = get_posts($args);
+			// The 'NOT EXISTS' checks above only look at whichever table is
+			// CURRENTLY the primary store. A store that has ever switched HPOS
+			// on/off can have hubwoo_pro_guest_order/hubwoo_invalid_contact sitting
+			// in the *other* table from an earlier period, which would otherwise
+			// make an already-handled guest order look untouched and get
+			// re-selected for historical contact sync. Exclude anything flagged
+			// in the other table directly.
+			global $wpdb;
+			$hpos_enabled          = Hubwoo::hubwoo_is_hpos_enabled();
+			$other_table           = $hpos_enabled ? $wpdb->postmeta : "{$wpdb->prefix}wc_orders_meta";
+			$other_table_id_column = $hpos_enabled ? 'post_id' : 'order_id';
+			$flagged_elsewhere     = $wpdb->get_col(
+				"SELECT DISTINCT {$other_table_id_column} FROM {$other_table} WHERE meta_key IN ('hubwoo_pro_guest_order', 'hubwoo_invalid_contact')"
+			);
+			if (! empty($flagged_elsewhere)) {
+				$args['exclude'] = array_map('intval', $flagged_elsewhere);
 			}
+
+			$guest_orders = wc_get_orders($args);
+
+			// $args gets reused below for the registered-user get_users() call,
+			// which also recognises 'exclude' -- but as user IDs, not order IDs.
+			// Must not leak this guest-order exclusion list into that query.
+			unset($args['exclude']);
 
 			$guest_emails = array_unique(self::get_guest_sync_data($guest_orders, true));
 
@@ -159,17 +154,14 @@ class HubwooDataSync
 		}
 
 		// creating args for registered users.
+		// Historical sync owns the "never touched" bucket (meta not set at all);
+		// real-time owns the "flagged yes" bucket (hubwoo_cron_schedule). Keeping
+		// these mutually exclusive is what prevents the two schedulers from
+		// picking up the same user at the same time.
 		$args['meta_query'] = array(
-
-			'relation' => 'OR',
 			array(
 				'key'     => 'hubwoo_pro_user_data_change',
 				'compare' => 'NOT EXISTS',
-			),
-			array(
-				'key'     => 'hubwoo_pro_user_data_change',
-				'value'   => 'synced',
-				'compare' => '!=',
 			),
 		);
 
@@ -321,7 +313,7 @@ class HubwooDataSync
 						}
 					}
 
-					if ($prop_index) {
+					if (false !== $prop_index) {
 						$guest_user_properties[$prop_index]['value'] = $customer_new_order_flag;
 					} else {
 						$guest_user_properties[] = array(
@@ -366,12 +358,12 @@ class HubwooDataSync
 		$real_user_roles = get_option('hubwoo-selected-user-roles', array());
 		if (empty($real_user_roles)) {
 			$real_user_roles = array_keys(Hubwoo_Admin::get_all_user_roles());
-			update_option('hubwoo-selected-user-roles', $real_user_roles);
+			update_option('hubwoo-selected-user-roles', $real_user_roles, false);
 		}
 		$historical_user_roles = get_option('hubwoo_customers_role_settings', array());
 		if (empty($historical_user_roles)) {
 			$historical_user_roles = array_keys(Hubwoo_Admin::get_all_user_roles());
-			update_option('hubwoo_customers_role_settings', $historical_user_roles);
+			update_option('hubwoo_customers_role_settings', $historical_user_roles, false);
 		}
 		$roles_to_check = $sync_type == 'real' ? $real_user_roles : $historical_user_roles;
 		if (in_array('guest_user', $roles_to_check)) {
@@ -382,7 +374,14 @@ class HubwooDataSync
 					$contact = array();
 					$hubwoo_guest_order = wc_get_order($order_id);
 					if ($hubwoo_guest_order instanceof WC_Order) {
-						$guest_email = $hubwoo_guest_order->get_billing_email();
+						// HubSpot stores/matches contact emails lowercased -- if this
+						// order's billing email was typed with any uppercase letters,
+						// sending it as-is as the upsert id/email would either miss an
+						// existing lowercase contact or create a mixed-case duplicate.
+						// Normalize once here so every downstream use (the account
+						// lookup below, and the id/email sent in the payload further
+						// down) is consistent.
+						$guest_email = strtolower($hubwoo_guest_order->get_billing_email());
 
 						if (! empty($guest_email) && $only_email) {
 							$guest_user_emails[] = $guest_email;
@@ -392,6 +391,42 @@ class HubwooDataSync
 						if (empty($guest_email)) {
 							Hubwoo::hubwoo_hpos_update_meta_data($hubwoo_guest_order,'hubwoo_invalid_contact','yes');
 							Hubwoo::hubwoo_hpos_update_meta_data($hubwoo_guest_order,'hubwoo_pro_guest_order','synced');
+							continue;
+						}
+
+						// If this "guest" email actually belongs to a real WP account,
+						// this contact isn't a guest at all -- sync them as a registered
+						// contact instead. Their order-derived properties correctly
+						// include this guest order via Hubwoo::hubwoo_resolve_contact_orders(),
+						// and their address/customer_group/language/etc. come from their
+						// own account data via the normal registered-contact machinery --
+						// pushing a separate guest-flavored property set here would just
+						// get overwritten by (or itself overwrite) that registered sync.
+						$existing_wp_user = get_user_by('email', $guest_email);
+
+						if ($existing_wp_user instanceof WP_User) {
+							if (! empty(array_intersect($existing_wp_user->roles, $roles_to_check))) {
+								$hubwoo_customer = new HubWooCustomer($existing_wp_user->ID);
+								$user_properties = $hubwoo_customer->get_contact_properties();
+								$user_properties = $hubwoo_customer->get_user_data_properties($user_properties);
+								if (count($user_properties)) {
+									$contact = array();
+									foreach ($user_properties as $key => $property) {
+										$contact[$property['property']] = $property['value'];
+									}
+									$contact['email'] = $guest_email;
+									$guest_contacts[] = array(
+										'id' => $guest_email,
+										'idProperty' => 'email',
+										'properties' => $contact,
+									);
+								}
+							} else {
+								// Their role isn't selected for syncing -- mark handled so
+								// this order isn't reselected into every future batch
+								// forever, same as the empty-email case above.
+								Hubwoo::hubwoo_hpos_update_meta_data($hubwoo_guest_order, 'hubwoo_pro_guest_order', 'synced');
+							}
 							continue;
 						}
 
@@ -484,7 +519,7 @@ class HubwooDataSync
 						}
 
 						$prop_index = array_search('customer_new_order', array_column($guest_user_properties, 'property'));
-						if ($prop_index) {
+						if (false !== $prop_index) {
 							$guest_user_properties[$prop_index]['value'] = $customer_new_order_flag;
 						} else {
 							$guest_user_properties[] = array(
@@ -522,7 +557,8 @@ class HubwooDataSync
 
 		delete_option('hubwoo_ocs_data_synced');
 		delete_option('hubwoo_ocs_contacts_synced');
-		update_option('hubwoo_background_process_running', true);
+		delete_option('hubwoo_total_ocs_contact_need_sync');
+		update_option('hubwoo_background_process_running', true, false);
 
 		if (! as_next_scheduled_action('hubwoo_contacts_sync_background')) {
 			as_schedule_recurring_action(time(), 300, 'hubwoo_contacts_sync_background');
@@ -607,12 +643,12 @@ class HubwooDataSync
 		$real_user_roles = get_option('hubwoo-selected-user-roles', array());
 		if (empty($real_user_roles)) {
 			$real_user_roles = array_keys(Hubwoo_Admin::get_all_user_roles());
-			update_option('hubwoo-selected-user-roles', $real_user_roles);
+			update_option('hubwoo-selected-user-roles', $real_user_roles, false);
 		}
 		$historical_user_roles = get_option('hubwoo_customers_role_settings', array());
 		if (empty($historical_user_roles)) {
 			$historical_user_roles = array_keys(Hubwoo_Admin::get_all_user_roles());
-			update_option('hubwoo_customers_role_settings', $historical_user_roles);
+			update_option('hubwoo_customers_role_settings', $historical_user_roles, false);
 		}
 
 		if (count($hubwoo_unique_users)) {

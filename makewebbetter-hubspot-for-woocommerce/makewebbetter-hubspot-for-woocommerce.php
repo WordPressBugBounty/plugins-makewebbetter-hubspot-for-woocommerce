@@ -15,11 +15,11 @@
  * Plugin Name:          MWB HubSpot for WooCommerce
  * Plugin URI:           https://wordpress.org/plugins/makewebbetter-hubspot-for-woocommerce
  * Description:          Integrate WooCommerce with HubSpot’s free CRM, abandoned cart tracking, email marketing, marketing automation, analytics & more.
- * Version:              1.6.7
+ * Version:              1.6.8
  * Requires at least:    4.4.0
- * Tested up to:         6.9.4
+ * Tested up to:         7.1.0
  * WC requires at least: 3.5.0
- * WC tested up to:      10.6.2
+ * WC tested up to:      11.0.1
  * Author:               MakeWebBetter
  * Author URI:           http://www.makewebbetter.com/?utm_source=MWB-HubspotFree-backend&utm_medium=MWB-backend&utm_campaign=backend
  * License: GPLv3 or later
@@ -109,7 +109,7 @@ if ( $hubwoo_pro_activated && $hubwoo_pro_flag ) {
 	function hubwoo_pro_define_constants() {
 		hubwoo_pro_define( 'HUBWOO_ABSPATH', dirname( __FILE__ ) . '/' );
 		hubwoo_pro_define( 'HUBWOO_URL', plugin_dir_url( __FILE__ ) );
-		hubwoo_pro_define( 'HUBWOO_VERSION', '1.6.7' );
+		hubwoo_pro_define( 'HUBWOO_VERSION', '1.6.8' );
 		hubwoo_pro_define( 'HUBWOO_PLUGINS_PATH', plugin_dir_path( __DIR__ ) );
 		hubwoo_pro_define( 'HUBWOO_CLIENT_ID', '769fa3e6-79b1-412d-b69c-6b8242b2c62a' );
 		hubwoo_pro_define( 'HUBWOO_SECRET_ID', '2893dd41-017e-4208-962b-12f7495d16b0' );
@@ -302,7 +302,7 @@ add_action( 'before_woocommerce_init', function() {
  
     if ( class_exists( '\Automattic\WooCommerce\Utilities\FeaturesUtil' ) ) {
  
-        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', __FILE__, false );
+        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', __FILE__, true );
  
     }
  
